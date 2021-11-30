@@ -30,29 +30,14 @@ lazy val core = crossProject(JVMPlatform, JSPlatform)
         Nil
   )
 
-lazy val stdText = crossProject(JVMPlatform, JSPlatform)
+lazy val jsonCirce = crossProject(JVMPlatform, JSPlatform)
   .crossType(CrossType.Pure)
-  .in(file("modules/std-text"))
+  .in(file("modules/json-circe"))
   .settings(
-    name := "inspector-std-text"
-  )
-  .dependsOn(core % "compile->compile;test->test")
-
-lazy val stdError = crossProject(JVMPlatform, JSPlatform)
-  .crossType(CrossType.Pure)
-  .in(file("modules/std-error"))
-  .settings(
-    name := "inspector-std-error"
-  )
-  .dependsOn(core % "compile->compile;test->test")
-
-lazy val stdErrorCirce = crossProject(JVMPlatform, JSPlatform)
-  .crossType(CrossType.Pure)
-  .in(file("modules/std-error-circe"))
-  .settings(
-    name := "inspector-std-error-circe",
+    name := "inspector-json-circe",
     libraryDependencies ++=
       "io.circe" %%% "circe-core" % "0.14.1" ::
-        Nil
+        Nil,
+    scalacOptions ++= "-Ypatmat-exhaust-depth" :: "40" :: Nil
   )
-  .dependsOn(stdError)
+  .dependsOn(core)
