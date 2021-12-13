@@ -40,4 +40,4 @@ lazy val jsonCirce = crossProject(JVMPlatform, JSPlatform)
         Nil,
     scalacOptions ++= "-Ypatmat-exhaust-depth" :: "40" :: Nil
   )
-  .dependsOn(core)
+  .dependsOn(core % "compile->compile;test->test")

@@ -158,25 +158,27 @@ object Validation {
     sealed abstract class Text extends Rule[String, Unit]
 
     object Text {
-      final case class AtLeast(reference: Int) extends Text {
-        def error(length: Int): Validation.Error = Validation.Error.Text.AtLeast(reference, length)
+      final case class AtLeast(equal: Boolean, reference: Int) extends Text {
+        def error(length: Int): Validation.Error = Validation.Error.Text.AtLeast(equal, reference, length)
 
         override def errors(input: String): List[Validation.Error] = List(error(input.length))
 
         override def run(input: String): Validated[NonEmptyList[Validation.Error], Unit] = {
           val length = input.length
-          Validated.cond(length >= reference, (), NonEmptyList.one(error(length)))
+          val check = if (equal) length >= reference else length > reference
+          Validated.cond(check, (), NonEmptyList.one(error(length)))
         }
       }
 
-      final case class AtMost(reference: Int) extends Text {
-        def error(length: Int): Validation.Error = Validation.Error.Text.AtMost(reference, length)
+      final case class AtMost(equal: Boolean, reference: Int) extends Text {
+        def error(length: Int): Validation.Error = Validation.Error.Text.AtMost(equal, reference, length)
 
         override def errors(input: String): List[Validation.Error] = List(error(input.length))
 
         override def run(input: String): Validated[NonEmptyList[Validation.Error], Unit] = {
           val length = input.length
-          Validated.cond(length <= reference, (), NonEmptyList.one(error(length)))
+          val check = if (equal) length <= reference else length < reference
+          Validated.cond(check, (), NonEmptyList.one(error(length)))
         }
       }
 
@@ -308,13 +310,13 @@ object Validation {
     def field[I, O](name: String)(validation: Validation.Group[I, O]): Validation.Group[I, O] =
       new Validation.Group[I, O] {
         override def run(input: I): Validated[Validation.Errors, O] =
-          validation.run(input).leftMap(_.prepend(Cursor.Operation.Field(name)))
+          validation.run(input).leftMap(_.prepend(Selection.Field(name)))
       }
 
     def index[I, O](value: Int)(validation: Validation.Group[I, O]): Validation.Group[I, O] =
       new Validation.Group[I, O] {
         override def run(input: I): Validated[Validation.Errors, O] =
-          validation.run(input).leftMap(_.prepend(Cursor.Operation.Index(value)))
+          validation.run(input).leftMap(_.prepend(Selection.Index(value)))
       }
 
     def collection[F[_]: Traverse, I, O](validation: Validation.Group[I, O]): Validation.Group[F[I], F[O]] =
@@ -359,6 +361,21 @@ object Validation {
   object Error {
     final case class Not(error: Error) extends Error
 
+    object Not {
+      def apply(error: Error): Error = error match {
+        case Not(error)                                   => error
+        case Collection.AtLeast(reference, actual)        => Collection.AtMost(reference, actual)
+        case Collection.AtMost(reference, actual)         => Collection.AtLeast(reference, actual)
+        case Date.After(reference, actual)                => Date.Before(reference, actual)
+        case Date.Before(reference, actual)               => Date.After(reference, actual)
+        case Number.GreaterThan(equal, reference, actual) => Number.LessThan(!equal, reference, actual)
+        case Number.LessThan(equal, reference, actual)    => Number.GreaterThan(!equal, reference, actual)
+        case Text.AtLeast(equal, reference, actual)       => Text.AtMost(!equal, reference, actual)
+        case Text.AtMost(equal, reference, actual)        => Text.AtLeast(!equal, reference, actual)
+        case error                                        => new Not(error)
+      }
+    }
+
     sealed abstract class Collection extends Error
 
     object Collection {
@@ -388,8 +405,8 @@ object Validation {
     sealed abstract class Text extends Error
 
     object Text {
-      final case class AtLeast(reference: Int, actual: Int) extends Text
-      final case class AtMost(reference: Int, actual: Int) extends Text
+      final case class AtLeast(equal: Boolean, reference: Int, actual: Int) extends Text
+      final case class AtMost(equal: Boolean, reference: Int, actual: Int) extends Text
       final case class Email(actual: String) extends Text
       final case class Equal(expected: String, actual: String) extends Text
       final case class Exactly(expected: Int, actual: Int) extends Text
@@ -397,16 +414,17 @@ object Validation {
     }
   }
 
-  final case class Errors(values: NonEmptyMap[Cursor, NonEmptyList[Validation.Error]]) extends AnyVal {
-    def prepend(cursor: Cursor): Errors = Errors(values.mapKeys(cursor /:: _))
+  final case class Errors(values: NonEmptyMap[Selection.History, NonEmptyList[Validation.Error]]) extends AnyVal {
+    def prepend(history: Selection.History): Errors = Errors(values.mapKeys(history /:: _))
 
-    def prepend(operation: Cursor.Operation): Errors = Errors(values.mapKeys(operation /: _))
+    def prepend(operation: Selection): Errors = Errors(values.mapKeys(operation /: _))
   }
 
   object Errors {
-    def one(cursor: Cursor, errors: NonEmptyList[Validation.Error]): Errors = Errors(NonEmptyMap.one(cursor, errors))
+    def one(history: Selection.History, errors: NonEmptyList[Validation.Error]): Errors =
+      Errors(NonEmptyMap.one(history, errors))
 
-    def root(errors: NonEmptyList[Validation.Error]): Errors = Errors(NonEmptyMap.one(Cursor.Root, errors))
+    def root(errors: NonEmptyList[Validation.Error]): Errors = Errors(NonEmptyMap.one(Selection.History.Root, errors))
 
     implicit val semigroup: Semigroup[Errors] = new Semigroup[Errors] {
       override def combine(x: Errors, y: Errors): Errors = Errors(x.values combine y.values)

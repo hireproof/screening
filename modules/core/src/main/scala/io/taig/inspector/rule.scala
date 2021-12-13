@@ -107,30 +107,19 @@ object rule {
     def equal[I](expected: I)(implicit numeric: Numeric[I]): Validation.Rule[I, Unit] =
       equal(expected, delta = numeric.zero)
 
-    def greaterThan[I](reference: I)(implicit numeric: Numeric[I]): Validation.Rule[I, Unit] = Validation.Rule.Number(
-      Validation.Rule.Number.Operator.GreaterThan(equal = false),
-      reference,
-      numeric.zero
-    )
-
-    def greaterThanEqual[I](reference: I)(implicit numeric: Numeric[I]): Validation.Rule[I, Unit] =
+    def greaterThan[I](reference: I, equal: Boolean = false)(implicit numeric: Numeric[I]): Validation.Rule[I, Unit] =
       Validation.Rule.Number(
-        Validation.Rule.Number.Operator.GreaterThan(equal = true),
+        Validation.Rule.Number.Operator.GreaterThan(equal),
         reference,
         numeric.zero
       )
 
-    def lessThan[I](reference: I)(implicit numeric: Numeric[I]): Validation.Rule[I, Unit] = Validation.Rule.Number(
-      Validation.Rule.Number.Operator.LessThan(equal = false),
-      reference,
-      numeric.zero
-    )
-
-    def lessThanEqual[I](reference: I)(implicit numeric: Numeric[I]): Validation.Rule[I, Unit] = Validation.Rule.Number(
-      Validation.Rule.Number.Operator.LessThan(equal = true),
-      reference,
-      numeric.zero
-    )
+    def lessThan[I](reference: I, equal: Boolean = false)(implicit numeric: Numeric[I]): Validation.Rule[I, Unit] =
+      Validation.Rule.Number(
+        Validation.Rule.Number.Operator.LessThan(equal),
+        reference,
+        numeric.zero
+      )
   }
 
   object number extends number
@@ -158,9 +147,11 @@ object rule {
 
     val trim: Validation.Rule[String, String] = lift(_.trim)
 
-    def atLeast(reference: Int): Validation.Rule[String, Unit] = Validation.Rule.Text.AtLeast(reference)
+    def atLeast(reference: Int, equal: Boolean = true): Validation.Rule[String, Unit] =
+      Validation.Rule.Text.AtLeast(equal, reference)
 
-    def atMost(reference: Int): Validation.Rule[String, Unit] = Validation.Rule.Text.AtMost(reference)
+    def atMost(reference: Int, equal: Boolean = true): Validation.Rule[String, Unit] =
+      Validation.Rule.Text.AtMost(equal, reference)
 
     val email: Validation.Rule[String, Unit] = matches("""^.+@.+\..+$""".r).modifyError {
       case Validation.Error.Text.Matches(_, actual) => Validation.Error.Text.Email(actual)
@@ -173,8 +164,8 @@ object rule {
     val nonEmpty: Validation.Rule[String, Unit] = Validation.Rule.Not(empty)
 
     def exactly(expected: Int): Validation.Rule[String, Unit] = (atLeast(expected) and atMost(expected)).modifyError {
-      case Validation.Error.Text.AtLeast(reference, actual) => Validation.Error.Text.Exactly(reference, actual)
-      case Validation.Error.Text.AtMost(reference, actual)  => Validation.Error.Text.Exactly(reference, actual)
+      case Validation.Error.Text.AtLeast(equal, reference, actual) => Validation.Error.Text.Exactly(reference, actual)
+      case Validation.Error.Text.AtMost(equal, reference, actual)  => Validation.Error.Text.Exactly(reference, actual)
     }
 
     def matches(regex: Regex): Validation.Rule[String, Unit] = Validation.Rule.Text.Matches(regex)

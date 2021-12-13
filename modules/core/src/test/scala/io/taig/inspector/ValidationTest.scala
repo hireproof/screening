@@ -5,7 +5,7 @@ import io.taig.inspector.rule._
 
 import java.time._
 
-final class ValidationTest[E] extends FunSuite {
+final class ValidationTest extends FunSuite {
   test("collection.atLeast") {
     assert(collection.atLeast(reference = 1).run(List(1, 2, 3)).isValid)
     assert(collection.atLeast(reference = 3).run(List(1, 2, 3)).isValid)
@@ -237,47 +237,47 @@ final class ValidationTest[E] extends FunSuite {
     )
   }
 
-  test("number.greaterThan") {
-    assert(number.greaterThan(1).run(3).isValid)
+  test("number.greaterThan (equal: false)") {
+    assert(number.greaterThan(1, equal = false).run(3).isValid)
     assertEquals(
-      obtained = number.greaterThan(3).run(3).error,
+      obtained = number.greaterThan(3, equal = false).run(3).error,
       expected = Some(Validation.Error.Number.GreaterThan(equal = false, 3, 3))
     )
     assertEquals(
-      obtained = number.greaterThan(3).run(1).error,
+      obtained = number.greaterThan(3, equal = false).run(1).error,
       expected = Some(Validation.Error.Number.GreaterThan(equal = false, 3, 1))
     )
   }
 
-  test("number.greaterThanEquals") {
-    assert(number.greaterThanEqual(1).run(3).isValid)
-    assert(number.greaterThanEqual(3).run(3).isValid)
+  test("number.greaterThan (equal: true)") {
+    assert(number.greaterThan(1, equal = true).run(3).isValid)
+    assert(number.greaterThan(3, equal = true).run(3).isValid)
 
     assertEquals(
-      obtained = number.greaterThanEqual(3).run(1).error,
+      obtained = number.greaterThan(3, equal = true).run(1).error,
       expected = Some(Validation.Error.Number.GreaterThan(equal = true, 3, 1))
     )
   }
 
-  test("number.lessThan") {
-    assert(number.lessThan(3).run(1).isValid)
+  test("number.lessThan (equal: false)") {
+    assert(number.lessThan(3, equal = false).run(1).isValid)
     assertEquals(
-      obtained = number.lessThan(3).run(3).error,
+      obtained = number.lessThan(3, equal = false).run(3).error,
       expected = Some(Validation.Error.Number.LessThan(equal = false, 3, 3))
     )
 
     assertEquals(
-      obtained = number.lessThan(1).run(3).error,
+      obtained = number.lessThan(1, equal = false).run(3).error,
       expected = Some(Validation.Error.Number.LessThan(equal = false, 1, 3))
     )
   }
 
-  test("number.lessThanEquals") {
-    assert(number.lessThanEqual(3).run(1).isValid)
-    assert(number.lessThanEqual(3).run(3).isValid)
+  test("number.lessThan (equal: true)") {
+    assert(number.lessThan(3, equal = true).run(1).isValid)
+    assert(number.lessThan(3, equal = true).run(3).isValid)
 
     assertEquals(
-      obtained = number.lessThanEqual(1).run(3).error,
+      obtained = number.lessThan(1, equal = true).run(3).error,
       expected = Some(Validation.Error.Number.LessThan(equal = true, 1, 3))
     )
   }
@@ -379,20 +379,20 @@ final class ValidationTest[E] extends FunSuite {
   }
 
   test("text.atLeast") {
-    assert(text.atLeast(reference = 1).run("foo").isValid)
-    assert(text.atLeast(reference = 3).run("foo").isValid)
+    assert(text.atLeast(reference = 1, equal = true).run("foo").isValid)
+    assert(text.atLeast(reference = 3, equal = true).run("foo").isValid)
     assertEquals(
-      obtained = text.atLeast(reference = 3).run("fo").error,
-      expected = Some(Validation.Error.Text.AtLeast(reference = 3, actual = 2))
+      obtained = text.atLeast(reference = 3, equal = true).run("fo").error,
+      expected = Some(Validation.Error.Text.AtLeast(equal = true, reference = 3, actual = 2))
     )
   }
 
   test("text.atMost") {
-    assert(text.atMost(reference = 3).run("fo").isValid)
-    assert(text.atMost(reference = 3).run("foo").isValid)
+    assert(text.atMost(reference = 3, equal = true).run("fo").isValid)
+    assert(text.atMost(reference = 3, equal = true).run("foo").isValid)
     assertEquals(
-      obtained = text.atMost(reference = 1).run("foo").error,
-      expected = Some(Validation.Error.Text.AtMost(reference = 1, actual = 3))
+      obtained = text.atMost(reference = 1, equal = true).run("foo").error,
+      expected = Some(Validation.Error.Text.AtMost(equal = true, reference = 1, actual = 3))
     )
   }
 
@@ -400,7 +400,7 @@ final class ValidationTest[E] extends FunSuite {
     assert(text.empty.run("").isValid)
     assertEquals(
       obtained = text.empty.run("foo").error,
-      expected = Some(Validation.Error.Text.AtMost(reference = 0, actual = 3))
+      expected = Some(Validation.Error.Text.AtMost(equal = true, reference = 0, actual = 3))
     )
   }
 
@@ -408,7 +408,7 @@ final class ValidationTest[E] extends FunSuite {
     assert(text.nonEmpty.run("foobar").isValid)
     assertEquals(
       obtained = text.nonEmpty.run("").error,
-      expected = Some(Validation.Error.Not(Validation.Error.Text.AtMost(reference = 0, actual = 0)))
+      expected = Some(Validation.Error.Not(Validation.Error.Text.AtMost(equal = true, reference = 0, actual = 0)))
     )
   }
 
