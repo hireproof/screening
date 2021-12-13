@@ -1,19 +1,17 @@
 package io.taig.inspector
 
-import cats.data.{NonEmptyList, NonEmptyMap}
-import cats.syntax.all._
+import cats.data.{NonEmptyList, Validated}
+import io.circe._
 import io.circe.syntax._
-import io.circe.{ACursor, CursorOp, Decoder, Encoder, FailedCursor, HCursor, JsonObject, KeyEncoder}
-import io.taig.inspector.ValidatingDecoder.Result
 
 import java.time.temporal.Temporal
 
 trait circe {
   private object Keys {
+    val Actual = "actual"
     val Context = "context"
     val Error = "error"
     val Expected = "expected"
-    val Actual = "actual"
     val Reference = "reference"
     val Regex = "regex"
     val Type = "type"
@@ -59,14 +57,14 @@ trait circe {
 
   implicit private val encoderTemporal: Encoder[Temporal] = Encoder[String].contramap(_.toString)
 
-  private val parsingValueToString: Validation.Rule.Parsing.Value => String = {
-    case Validation.Rule.Parsing.Value.BigDecimal => "bigDecimal"
-    case Validation.Rule.Parsing.Value.BigInt     => "bigInt"
-    case Validation.Rule.Parsing.Value.Double     => "double"
-    case Validation.Rule.Parsing.Value.Float      => "float"
-    case Validation.Rule.Parsing.Value.Int        => "int"
-    case Validation.Rule.Parsing.Value.Long       => "long"
-    case Validation.Rule.Parsing.Value.Short      => "short"
+  private val parsingValueToString: Validation.Parsing.Value => String = {
+    case Validation.Parsing.Value.BigDecimal => "bigDecimal"
+    case Validation.Parsing.Value.BigInt     => "bigInt"
+    case Validation.Parsing.Value.Double     => "double"
+    case Validation.Parsing.Value.Float      => "float"
+    case Validation.Parsing.Value.Int        => "int"
+    case Validation.Parsing.Value.Long       => "long"
+    case Validation.Parsing.Value.Short      => "short"
   }
 
   implicit val encoderInspectorValidationError: Encoder.AsObject[Validation.Error] = Encoder.AsObject.instance {
@@ -110,52 +108,28 @@ trait circe {
     case Validation.Error.Not(error) => JsonObject(Keys.Type := Types.Not, Keys.Error := error.asJsonObject)
   }
 
-  implicit val keyEncoderInspectorCursor: KeyEncoder[Selection.History] = KeyEncoder.instance { cursor =>
-    cursor.values.foldLeft(".") {
-      case (result, Selection.Field(name))  => s"$result.$name"
-      case (result, Selection.Index(index)) => s"$result[$index]"
-    }
-  }
+  implicit val keyEncoderInspectorCursorHistory: KeyEncoder[List[CursorOp]] = KeyEncoder.instance(CursorOp.opsToPath)
 
-  implicit val encoderInspectorValidationErrors: Encoder[Validation.Errors] =
-    Encoder[NonEmptyMap[Selection.History, NonEmptyList[Validation.Error]]].contramap(_.values)
+  implicit val encoderInspectorValidatingDecoderError: Encoder[Either[String, NonEmptyList[Validation.Error]]] =
+    Encoder.instance {
+      case Right(errors) => Json.obj(Keys.Type := "errors", "errors" := errors)
+      case Left(failure) => Json.obj(Keys.Type := "failure", "message" := failure)
+    }
+
+  implicit val encoderInspectorValidatingDecoderErrors: Encoder[ValidatingDecoder.Errors] =
+    Encoder[Map[List[CursorOp], Either[String, NonEmptyList[Validation.Error]]]].contramap(_.toMap)
 }
 
 object circe extends circe {
-  def toSelectionHistory(values: List[CursorOp]): Selection.History = Selection.History.from {
-    values.foldRight(List.empty[Selection]) {
-      case (CursorOp.DownField(name), selections)           => Selection.Field(name) :: selections
-      case (CursorOp.DownN(index), selections)              => Selection.Index(index) :: selections
-      case (CursorOp.DownArray, selections)                 => Selection.Index(0) :: selections
-      case (CursorOp.MoveUp, _ :: tail)                     => tail
-      case (CursorOp.MoveUp, selections)                    => selections
-      case (CursorOp.MoveRight, Selection.Index(i) :: tail) => Selection.Index(i + 1) :: tail
-      case (CursorOp.MoveRight, selections)                 => Selection.Index(0) :: selections
-      case (CursorOp.MoveLeft, Selection.Index(i) :: tail)  => Selection.Index(i - 1) :: tail
-      case (CursorOp.MoveLeft, selections)                  => Selection.Index(0) :: selections
-      case (CursorOp.DeleteGoParent, _ :: tail)             => tail
-      case (CursorOp.DeleteGoParent, selections)            => selections
-      case (CursorOp.Field(name), _ :: tail)                => Selection.Field(name) :: tail
-      case (CursorOp.Field(name), selections)               => Selection.Field(name) :: selections
-    }
-  }
-
   implicit final class RichCursor(val cursor: ACursor) extends AnyVal {
-    def validate[A](implicit decoder: ValidatingDecoder[A]): ValidatingDecoder.Result[A] = cursor match {
-      case cursor: HCursor => decoder.apply(cursor)
-      case _               => ???
-    }
+    def validate[A](implicit decoder: ValidatingDecoder[A]): ValidatingDecoder.Result[A] = decoder.tryDecode(cursor)
 
-    def validateWith[I, O](
-        validation: Validation.Rule[I, O]
-    )(implicit decoder: Decoder[I]): ValidatingDecoder.Result[O] = cursor match {
-      case cursor: HCursor =>
-        decoder.apply(cursor) match {
-          case Right(input) =>
-            validation.run(input).leftMap(ValidatingDecoder.Errors.one(toSelectionHistory(cursor.history), _))
-          case Left(failure) => ???
-        }
-      case _ => ???
+    def validateWith[I, O](validation: Validation[I, O])(implicit decoder: Decoder[I]): ValidatingDecoder.Result[O] = {
+      decoder.tryDecode(cursor) match {
+        case Right(value) =>
+          validation.run(value).leftMap(ValidatingDecoder.Errors.fromErrors(cursor.history, _))
+        case Left(failure) => Validated.invalid(ValidatingDecoder.Errors.fromDecodingFailure(failure))
+      }
     }
   }
 }

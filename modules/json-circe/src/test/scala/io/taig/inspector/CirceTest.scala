@@ -2,7 +2,7 @@ package io.taig.inspector
 
 import cats.data.{NonEmptyList, NonEmptyMap, Validated}
 import cats.syntax.all._
-import io.circe.Json
+import io.circe.{CursorOp, Json}
 import io.circe.syntax._
 import io.taig.inspector.circe._
 import munit.FunSuite
@@ -20,77 +20,12 @@ final class CirceTest extends FunSuite {
     )
   )
 
-  test("toSelectionHistory") {
-    assertEquals(
-      obtained =
-        toSelectionHistory(json.hcursor.downField("foo").downArray.right.left.right.right.downField("name").history),
-      expected = Selection.History.of(Selection.Field("name"), Selection.Index(2), Selection.Field("foo"))
-    )
-
-    assertEquals(
-      obtained = toSelectionHistory(json.hcursor.downField("bar").downField("name").history),
-      expected = Selection.History.of(Selection.Field("name"), Selection.Field("bar"))
-    )
-  }
-
-  test("toSelectionHistory: deleteGoParent") {
-    assertEquals(
-      obtained = toSelectionHistory(json.hcursor.downField("foo").delete.history),
-      expected = Selection.History.Root
-    )
-
-    assertEquals(
-      obtained =
-        toSelectionHistory(json.hcursor.downField("foo").downArray.right.right.downField("name").delete.history),
-      expected = Selection.History.of(Selection.Index(2), Selection.Field("foo"))
-    )
-
-    assertEquals(
-      obtained = toSelectionHistory(json.hcursor.downField("foo").downArray.right.right.delete.history),
-      expected = Selection.History.of(Selection.Field("foo"))
-    )
-
-    assertEquals(
-      obtained = toSelectionHistory(json.hcursor.delete.history),
-      expected = Selection.History.Root
-    )
-  }
-
-  test("toSelectionHistory: moveUp") {
-    assertEquals(
-      obtained = toSelectionHistory(json.hcursor.downField("foo").up.history),
-      expected = Selection.History.Root
-    )
-
-    assertEquals(
-      obtained = toSelectionHistory(json.hcursor.downField("foo").downArray.right.right.downField("name").up.history),
-      expected = Selection.History.of(Selection.Index(2), Selection.Field("foo"))
-    )
-
-    assertEquals(
-      obtained = toSelectionHistory(json.hcursor.downField("foo").downArray.right.right.up.history),
-      expected = Selection.History.of(Selection.Field("foo"))
-    )
-
-    assertEquals(
-      obtained = toSelectionHistory(json.hcursor.up.history),
-      expected = Selection.History.Root
-    )
-  }
-
-  test("toSelectionHistory: field") {
-    assertEquals(
-      obtained = toSelectionHistory(json.hcursor.downField("foo").field("bar").history),
-      expected = Selection.History.of(Selection.Field("bar"))
-    )
-  }
-
   test("ValidatingDecoder: failure") {
     val decoder = ValidatingDecoder[Int]
 
     assertEquals(
       obtained = decoder.decodeJson(Json.fromString("3.14")),
-      expected = Validated.invalid(ValidatingDecoder.Errors(NonEmptyMap.one(Selection.History.Root, Left("Int"))))
+      expected = Validated.invalid(ValidatingDecoder.Errors.one(Nil, Left("Int")))
     )
   }
 
@@ -100,8 +35,8 @@ final class CirceTest extends FunSuite {
     assertEquals(
       obtained = decoder.decodeJson(Json.fromString("")),
       expected = Validated.invalid(
-        ValidatingDecoder.Errors.one(
-          Selection.History.Root,
+        ValidatingDecoder.Errors.fromErrors(
+          Nil,
           NonEmptyList.one(Validation.Error.Not(Validation.Error.Text.AtMost(equal = true, 0, 0)))
         )
       )
@@ -123,18 +58,16 @@ final class CirceTest extends FunSuite {
     assertEquals(
       obtained = decoder.decodeJson(Json.obj("name" := "", "age" := 130)),
       expected = Validated.invalid(
-        ValidatingDecoder.Errors(
-          NonEmptyMap.of(
-            Selection.History.of(Selection.Field("age")) ->
-              Right(
-                NonEmptyList.of(
-                  Validation.Error.Number.LessThan(equal = true, 100, 130),
-                  Validation.Error.Number.LessThan(equal = false, 80, 130)
-                )
-              ),
-            Selection.History.of(Selection.Field("name")) ->
-              Right(NonEmptyList.one(Validation.Error.Text.AtLeast(equal = false, 0, 0)))
-          )
+        ValidatingDecoder.Errors.of(
+          List(CursorOp.DownField("age")) ->
+            Right(
+              NonEmptyList.of(
+                Validation.Error.Number.LessThan(equal = true, 100, 130),
+                Validation.Error.Number.LessThan(equal = false, 80, 130)
+              )
+            ),
+          List(CursorOp.DownField("name")) ->
+            Right(NonEmptyList.one(Validation.Error.Text.AtLeast(equal = false, 0, 0)))
         )
       )
     )

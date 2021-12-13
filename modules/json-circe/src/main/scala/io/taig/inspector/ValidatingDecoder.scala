@@ -1,22 +1,28 @@
 package io.taig.inspector
 
-import cats.data.{NonEmptyList, NonEmptyMap, Validated}
+import cats.data.{NonEmptyList, Validated}
 import cats.syntax.all._
 import cats.{Monad, Semigroup}
 import io.circe._
 import io.taig.inspector.ValidatingDecoder.Result
-import io.taig.inspector.circe.toSelectionHistory
 
 import scala.annotation.tailrec
+import scala.collection.immutable.HashMap
 
 trait ValidatingDecoder[A] { self =>
   def apply(cursor: HCursor): ValidatingDecoder.Result[A]
 
+  final def tryDecode(cursor: ACursor): ValidatingDecoder.Result[A] = cursor match {
+    case cursor: HCursor => apply(cursor)
+    case _ =>
+      Validated.invalid(ValidatingDecoder.Errors.one(cursor.history, Left("Attempt to decode value on failed cursor")))
+  }
+
   final def decodeJson(json: Json): ValidatingDecoder.Result[A] = apply(json.hcursor)
 
-  final def ensure[O](validation: Validation.Rule[A, O]): ValidatingDecoder[O] = new ValidatingDecoder[O] {
+  final def ensure[O](validation: Validation[A, O]): ValidatingDecoder[O] = new ValidatingDecoder[O] {
     override def apply(cursor: HCursor): ValidatingDecoder.Result[O] = self.apply(cursor).andThen { value =>
-      validation.run(value).leftMap(ValidatingDecoder.Errors.one(toSelectionHistory(cursor.history), _))
+      validation.run(value).leftMap(ValidatingDecoder.Errors.fromErrors(cursor.history, _))
     }
   }
 
@@ -55,12 +61,14 @@ object ValidatingDecoder {
     override def apply(cursor: HCursor): ValidatingDecoder.Result[A] = Validated.valid(value)
   }
 
-  final case class Errors(values: NonEmptyMap[Selection.History, Either[String, NonEmptyList[Validation.Error]]])
-      extends AnyVal {
+  final class Errors private (
+      head: (List[CursorOp], Either[String, NonEmptyList[Validation.Error]]),
+      tail: HashMap[List[CursorOp], Either[String, NonEmptyList[Validation.Error]]]
+  ) {
     def merge(errors: Errors): Errors = {
-      val lookup = errors.values.toSortedMap
+      val lookup = errors.toMap
 
-      val result = errors.values.keys.foldLeft(values.toSortedMap) { case (result, history) =>
+      val result = errors.keys.foldLeft(this.toMap) { case (result, history) =>
         result.updatedWith(history) {
           case Some(Right(x)) =>
             lookup(history) match {
@@ -72,23 +80,47 @@ object ValidatingDecoder {
         }
       }
 
-      Errors(NonEmptyMap.fromMapUnsafe(result))
+      Errors.unsafeFromMap(result)
     }
+
+    def keys: Iterable[List[CursorOp]] = head._1 :: tail.keys.toList
+
+    def toMap: HashMap[List[CursorOp], Either[String, NonEmptyList[Validation.Error]]] = tail + head
+
+    override def hashCode(): Int = toMap.hashCode()
+
+    override def equals(obj: Any): Boolean = obj match {
+      case errors: Errors => toMap.equals(errors.toMap)
+      case _              => false
+    }
+
+    override def toString: String = toMap.toString()
   }
 
   object Errors {
-    def one(history: Selection.History, errors: NonEmptyList[Validation.Error]): Errors =
-      Errors(NonEmptyMap.one(history, errors.asRight))
+    def one(history: List[CursorOp], error: Either[String, NonEmptyList[Validation.Error]]): Errors =
+      new Errors((history, error), HashMap.empty)
 
-    def fromDecodingFailure(failure: DecodingFailure): Errors =
-      Errors(NonEmptyMap.one(toSelectionHistory(failure.history), failure.message.asLeft))
+    def fromErrors(history: List[CursorOp], errors: NonEmptyList[Validation.Error]): Errors =
+      one(history, errors.asRight)
 
-    def root(errors: NonEmptyList[Validation.Error]): Errors = Errors(
-      NonEmptyMap.one(Selection.History.Root, errors.asRight)
-    )
+    def fromDecodingFailure(failure: DecodingFailure): Errors = one(failure.history, failure.message.asLeft)
+
+    def root(error: Either[String, NonEmptyList[Validation.Error]]): Errors = one(Nil, error)
+
+    def fromMap(values: Map[List[CursorOp], Either[String, NonEmptyList[Validation.Error]]]): Option[Errors] =
+      Option.when(values.nonEmpty)(new Errors(values.head, values.tail.to(HashMap)))
+
+    def unsafeFromMap(values: Map[List[CursorOp], Either[String, NonEmptyList[Validation.Error]]]): Errors =
+      fromMap(values).get
+
+    def of(
+        head: (List[CursorOp], Either[String, NonEmptyList[Validation.Error]]),
+        tail: (List[CursorOp], Either[String, NonEmptyList[Validation.Error]])*
+    ): Errors = unsafeFromMap(tail.toMap + head)
 
     implicit val semigroup: Semigroup[Errors] = new Semigroup[Errors] {
-      override def combine(x: Errors, y: Errors): Errors = Errors(x.values combine y.values)
+      override def combine(x: Errors, y: Errors): Errors = x merge y
     }
   }
 

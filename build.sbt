@@ -30,6 +30,16 @@ lazy val core = crossProject(JVMPlatform, JSPlatform)
         Nil
   )
 
+lazy val generic = crossProject(JVMPlatform, JSPlatform)
+  .crossType(CrossType.Pure)
+  .in(file("modules/generic"))
+  .settings(
+    name := "inspector-generic",
+    libraryDependencies ++=
+      Nil
+  )
+  .dependsOn(core % "compile->compile;test->test")
+
 lazy val jsonCirce = crossProject(JVMPlatform, JSPlatform)
   .crossType(CrossType.Pure)
   .in(file("modules/json-circe"))
