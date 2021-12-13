@@ -1,16 +1,18 @@
 package io.taig.inspector
 
-import cats.{Semigroup, Semigroupal, Traverse}
 import cats.arrow.Arrow
-import cats.data.{NonEmptyList, NonEmptyMap, Validated}
+import cats.data.{NonEmptyList, Validated}
 import cats.syntax.all._
+import cats.{Semigroup, Semigroupal, Traverse}
+
+import scala.collection.immutable.HashMap
 
 abstract class ValidationGroup[-I, O] { self =>
   def run(input: I): Validated[ValidationGroup.Errors, O]
 
-  final def andThen[I1 <: I, T](validation: ValidationGroup[O, T]): ValidationGroup[I1, T] =
+  final def andThen[I1 <: I, T](group: ValidationGroup[O, T]): ValidationGroup[I1, T] =
     new ValidationGroup[I1, T] {
-      override def run(input: I1): Validated[ValidationGroup.Errors, T] = self.run(input).andThen(validation.run)
+      override def run(input: I1): Validated[ValidationGroup.Errors, T] = self.run(input).andThen(group.run)
     }
 
   final def andThenValidate[I1 <: I, T](f: O => Validated[ValidationGroup.Errors, T]): ValidationGroup[I1, T] =
@@ -20,20 +22,46 @@ abstract class ValidationGroup[-I, O] { self =>
 }
 
 object ValidationGroup {
-  final case class Errors(values: NonEmptyMap[Selection.History, NonEmptyList[Validation.Error]]) extends AnyVal {
-    def prepend(history: Selection.History): Errors = Errors(values.mapKeys(history /:: _))
+  final class Errors private (
+      head: (Selection.History, NonEmptyList[Validation.Error]),
+      tail: HashMap[Selection.History, NonEmptyList[Validation.Error]]
+  ) {
+    def prepend(selection: Selection): Errors = new Errors(
+      head.leftMap(selection /: _),
+      tail.map { case (history, errors) => (selection /: history, errors) }
+    )
 
-    def prepend(operation: Selection): Errors = Errors(values.mapKeys(operation /: _))
+    def merge(errors: Errors): Errors = {
+      val lookup = errors.toMap
+
+      val result = errors.keys.foldLeft(this.toMap) { case (result, history) =>
+        result.updatedWith(history) {
+          case Some(x) => Some(x concatNel lookup(history))
+          case None    => Some(lookup(history))
+        }
+      }
+
+      Errors.unsafeFromMap(result)
+    }
+
+    def toMap: HashMap[Selection.History, NonEmptyList[Validation.Error]] = tail + head
+
+    def keys: Iterable[Selection.History] = toMap.keys
   }
 
   object Errors {
     def one(history: Selection.History, errors: NonEmptyList[Validation.Error]): Errors =
-      Errors(NonEmptyMap.one(history, errors))
+      new Errors(history -> errors, HashMap.empty)
 
-    def root(errors: NonEmptyList[Validation.Error]): Errors = Errors(NonEmptyMap.one(Selection.History.Root, errors))
+    def root(errors: NonEmptyList[Validation.Error]): Errors = one(Selection.History.Root, errors)
+
+    def fromMap(values: Map[Selection.History, NonEmptyList[Validation.Error]]): Option[Errors] =
+      Option.when(values.nonEmpty)(new Errors(values.head, values.tail.to(HashMap)))
+
+    def unsafeFromMap(values: Map[Selection.History, NonEmptyList[Validation.Error]]): Errors = fromMap(values).get
 
     implicit val semigroup: Semigroup[Errors] = new Semigroup[Errors] {
-      override def combine(x: Errors, y: Errors): Errors = Errors(x.values combine y.values)
+      override def combine(x: Errors, y: Errors): Errors = x merge y
     }
   }
 

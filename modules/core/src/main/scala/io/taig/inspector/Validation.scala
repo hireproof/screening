@@ -10,12 +10,12 @@ import scala.Numeric.Implicits._
 import scala.Ordering.Implicits._
 import scala.util.matching.Regex
 
-abstract class Validation[-I, O] {
+sealed abstract class Validation[-I, O] {
   def run(input: I): ValidatedNel[Validation.Error, O]
 
   def errors(input: I): List[Validation.Error]
 
-  final def andThen[T](rule: Validation[O, T]): Validation[I, T] = Validation.AndThen(this, rule)
+  final def andThen[T](validation: Validation[O, T]): Validation[I, T] = Validation.AndThen(this, validation)
 
   final def modifyErrors(f: NonEmptyList[Validation.Error] => NonEmptyList[Validation.Error]): Validation[I, O] =
     Validation.Modify(this, f)
@@ -228,13 +228,13 @@ object Validation {
     }
   }
 
-  final case class Not[I](rule: Validation[I, Unit]) extends Validation[I, Unit] {
-    override def errors(input: I): List[Validation.Error] = rule.errors(input).map(Validation.Error.Not.apply)
+  final case class Not[I](validation: Validation[I, Unit]) extends Validation[I, Unit] {
+    override def errors(input: I): List[Validation.Error] = validation.errors(input).map(Validation.Error.Not.apply)
 
-    override def run(input: I): ValidatedNel[Validation.Error, Unit] = rule.run(input) match {
+    override def run(input: I): ValidatedNel[Validation.Error, Unit] = validation.run(input) match {
       case Validated.Valid(_) =>
         NonEmptyList
-          .fromList(rule.errors(input))
+          .fromList(validation.errors(input))
           .fold[ValidatedNel[Validation.Error, Unit]](Validated.valid(()))(Validated.invalid)
           .leftMap(_.map(Validation.Error.Not.apply))
       case Validated.Invalid(_) => Validated.valid(())
@@ -247,29 +247,30 @@ object Validation {
     override def run(input: I): ValidatedNel[Validation.Error, O] = Validated.valid(f(input))
   }
 
-  final case class First[I, X, O](rule: Validation[I, O]) extends Validation[(I, X), (O, X)] {
-    override def errors(input: (I, X)): List[Validation.Error] = rule.errors(input._1)
+  final case class First[I, X, O](validation: Validation[I, O]) extends Validation[(I, X), (O, X)] {
+    override def errors(input: (I, X)): List[Validation.Error] = validation.errors(input._1)
 
-    override def run(input: (I, X)): ValidatedNel[Validation.Error, (O, X)] = rule.run(input._1).map((_, input._2))
+    override def run(input: (I, X)): ValidatedNel[Validation.Error, (O, X)] =
+      validation.run(input._1).map((_, input._2))
   }
 
   final case class Modify[I, O](
-      rule: Validation[I, O],
+      validation: Validation[I, O],
       f: NonEmptyList[Validation.Error] => NonEmptyList[Validation.Error]
   ) extends Validation[I, O] {
-    override def errors(input: I): List[Validation.Error] = rule.errors(input).toNel.map(f(_).toList).orEmpty
+    override def errors(input: I): List[Validation.Error] = validation.errors(input).toNel.map(f(_).toList).orEmpty
 
-    override def run(input: I): Validated[NonEmptyList[Validation.Error], O] = rule.run(input).leftMap(f)
+    override def run(input: I): Validated[NonEmptyList[Validation.Error], O] = validation.run(input).leftMap(f)
   }
 
-  implicit final class Ops[I, O](val rule: Validation[I, O]) extends AnyVal {
-    def tap: Validation[I, I] = rule.first[I].dimap((i: I) => (i, i))(_._2)
+  implicit final class Ops[I, O](val validation: Validation[I, O]) extends AnyVal {
+    def tap: Validation[I, I] = validation.first[I].dimap((i: I) => (i, i))(_._2)
   }
 
-  implicit final class UnitOps[I](val rule: Validation[I, Unit]) extends AnyVal {
-    def and(rule: Validation[I, Unit]): Validation[I, Unit] = Validation.And(this.rule, rule)
+  implicit final class UnitOps[I](val validation: Validation[I, Unit]) extends AnyVal {
+    def and(validation: Validation[I, Unit]): Validation[I, Unit] = Validation.And(this.validation, validation)
 
-    def or(rule: Validation[I, Unit]): Validation[I, Unit] = Validation.Or(this.rule, rule)
+    def or(validation: Validation[I, Unit]): Validation[I, Unit] = Validation.Or(this.validation, validation)
   }
 
   sealed abstract class Error extends Product with Serializable

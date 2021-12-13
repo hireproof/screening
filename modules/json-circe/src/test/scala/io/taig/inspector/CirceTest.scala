@@ -1,9 +1,9 @@
 package io.taig.inspector
 
-import cats.data.{NonEmptyList, NonEmptyMap, Validated}
+import cats.data.{NonEmptyList, Validated}
 import cats.syntax.all._
-import io.circe.{CursorOp, Json}
 import io.circe.syntax._
+import io.circe.{CursorOp, Json}
 import io.taig.inspector.circe._
 import munit.FunSuite
 
@@ -30,7 +30,7 @@ final class CirceTest extends FunSuite {
   }
 
   test("ValidatingDecoder: error") {
-    val decoder = ValidatingDecoder[String].ensure(rule.text.required)
+    val decoder = ValidatingDecoder[String].ensure(validations.text.required)
 
     assertEquals(
       obtained = decoder.decodeJson(Json.fromString("")),
@@ -45,11 +45,11 @@ final class CirceTest extends FunSuite {
 
   test("ValidatingDecoder: accumulation") {
     val decoder = ValidatingDecoder.instance[(String, Int)] { cursor =>
-      val name = cursor.downField("name").validateWith(rule.text.required)
+      val name = cursor.downField("name").validateWith(validations.text.required)
       val age = cursor
         .downField("age")
         .validateWith(
-          (rule.number.lessThan(100, equal = true) and rule.number.lessThan(reference = 80)).tap
+          (validations.number.lessThan(100, equal = true) and validations.number.lessThan(reference = 80)).tap
         )
 
       (name, age).tupled

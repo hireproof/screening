@@ -2,20 +2,10 @@ package io.taig.inspector
 
 import cats.{Eq, Show}
 
-import java.time.{
-  Instant,
-  LocalDate,
-  LocalDateTime,
-  LocalTime,
-  OffsetDateTime,
-  OffsetTime,
-  Year,
-  YearMonth,
-  ZonedDateTime
-}
+import java.time._
 import scala.util.matching.Regex
 
-object rule {
+object validations {
   def lift[I, O](f: I => O): Validation[I, O] = Validation.Lift(f)
 
   trait collection {
@@ -151,8 +141,8 @@ object rule {
     val nonEmpty: Validation[String, Unit] = Validation.Not(empty)
 
     def exactly(expected: Int): Validation[String, Unit] = (atLeast(expected) and atMost(expected)).modifyError {
-      case Validation.Error.Text.AtLeast(equal, reference, actual) => Validation.Error.Text.Exactly(reference, actual)
-      case Validation.Error.Text.AtMost(equal, reference, actual)  => Validation.Error.Text.Exactly(reference, actual)
+      case Validation.Error.Text.AtLeast(true, reference, actual) => Validation.Error.Text.Exactly(reference, actual)
+      case Validation.Error.Text.AtMost(true, reference, actual)  => Validation.Error.Text.Exactly(reference, actual)
     }
 
     def matches(regex: Regex): Validation[String, Unit] = Validation.Text.Matches(regex)

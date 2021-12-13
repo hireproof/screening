@@ -1,7 +1,7 @@
 package io.taig.inspector
 
 import munit.FunSuite
-import io.taig.inspector.rule._
+import io.taig.inspector.validations._
 
 import java.time._
 
