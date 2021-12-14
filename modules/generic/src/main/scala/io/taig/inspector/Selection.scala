@@ -1,5 +1,9 @@
 package io.taig.inspector
 
+import cats.syntax.all._
+
+import java.util.regex.Pattern
+
 sealed abstract class Selection extends Product with Serializable
 
 object Selection {
@@ -7,23 +11,64 @@ object Selection {
   final case class Index(value: Int) extends Selection
 
   final case class History(values: List[Selection]) extends AnyVal {
-    def /:(operation: Selection): History = History(operation +: values)
+    def :+(operation: Selection): History = History(values :+ operation)
 
-    def /::(cursor: History): History = History(cursor.values ++ values)
+    def /(field: String): History = History(values :+ Field(field))
 
-    def toJsonPath: String = values.foldLeft("") {
-      case (result, Selection.Field(name))  => s".$name$result"
-      case (result, Selection.Index(index)) => s"[$index]$result"
-    }
+    def /(index: Int): History = History(values :+ Index(index))
+
+    def +:(operation: Selection): History = History(operation :: values)
+
+    def ++(history: History): History = History(values ++ history.values)
+
+    def toJsonPath: String = if (values.isEmpty) "."
+    else
+      values.foldLeft("") {
+        case (result, Selection.Field(name))  => s"$result.$name"
+        case (result, Selection.Index(index)) => s"$result[$index]"
+      }
 
     override def toString: String = toJsonPath
   }
 
   object History {
-    val Root: History = History(Nil)
+    val Root: Selection.History = History(Nil)
 
-    def from(selection: Iterable[Selection]): History = History(selection.toList)
+    def from(selection: Iterable[Selection]): Selection.History = History(selection.toList)
 
-    def of(selection: Selection*): History = from(selection)
+    def of(selection: Selection*): Selection.History = from(selection)
+
+    def fields(values: String*): Selection.History = from(values.map(Field.apply))
+
+    private val Parser = Pattern.compile("(?:\\.(\\w+))|\\[(\\d+)\\]")
+
+    def parse(value: String): Either[String, Selection.History] =
+      if (value.isEmpty) Left("Empty")
+      else if (value == ".") Right(Selection.History.Root)
+      else {
+        val result = List.newBuilder[Selection]
+        val matcher = Parser.matcher(value)
+        var lastOffset = 0
+
+        try {
+          while (matcher.find()) {
+            val field = matcher.group(1)
+            val index = matcher.group(2)
+
+            if (matcher.start() > lastOffset) throw new IllegalArgumentException("Contains invalid characters")
+            else lastOffset = matcher.end()
+
+            if (field != null) result += Selection.Field(field)
+            else result += Selection.Index(index.toInt)
+          }
+
+          if (lastOffset < value.length) throw new IllegalArgumentException("Contains invalid characters")
+
+          History(result.result()).asRight
+        } catch {
+          case _: NumberFormatException            => "Invalid index format".asLeft
+          case exception: IllegalArgumentException => exception.getMessage.asLeft
+        }
+      }
   }
 }

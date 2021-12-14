@@ -31,45 +31,11 @@ object validations {
   object collection extends collection
 
   trait date {
-    def after(reference: Instant): Validation[Instant, Unit] = Validation.Date.After(reference)(_ isAfter _)
+    def after(reference: Instant, equal: Boolean = true): Validation[Instant, Unit] =
+      Validation.Date.After(equal, reference)
 
-    def before(reference: Instant): Validation[Instant, Unit] = Validation.Date.Before(reference)(_ isBefore _)
-
-    def after(reference: OffsetDateTime): Validation[OffsetDateTime, Unit] =
-      Validation.Date.After(reference)(_ isAfter _)
-
-    def before(reference: OffsetDateTime): Validation[OffsetDateTime, Unit] =
-      Validation.Date.Before(reference)(_ isBefore _)
-
-    def after(reference: LocalDateTime): Validation[LocalDateTime, Unit] = Validation.Date.After(reference)(_ isAfter _)
-
-    def before(reference: LocalDateTime): Validation[LocalDateTime, Unit] =
-      Validation.Date.Before(reference)(_ isBefore _)
-
-    def after(reference: OffsetTime): Validation[OffsetTime, Unit] = Validation.Date.After(reference)(_ isAfter _)
-
-    def before(reference: OffsetTime): Validation[OffsetTime, Unit] = Validation.Date.Before(reference)(_ isBefore _)
-
-    def after(reference: LocalTime): Validation[LocalTime, Unit] = Validation.Date.After(reference)(_ isAfter _)
-
-    def before(reference: LocalTime): Validation[LocalTime, Unit] = Validation.Date.Before(reference)(_ isBefore _)
-
-    def after(reference: Year): Validation[Year, Unit] = Validation.Date.After(reference)(_ isAfter _)
-
-    def before(reference: Year): Validation[Year, Unit] = Validation.Date.Before(reference)(_ isBefore _)
-
-    def after(reference: YearMonth): Validation[YearMonth, Unit] = Validation.Date.After(reference)(_ isAfter _)
-
-    def before(reference: YearMonth): Validation[YearMonth, Unit] = Validation.Date.Before(reference)(_ isBefore _)
-
-    def after(reference: LocalDate): Validation[LocalDate, Unit] = Validation.Date.After(reference)(_ isAfter _)
-
-    def before(reference: LocalDate): Validation[LocalDate, Unit] = Validation.Date.Before(reference)(_ isBefore _)
-
-    def after(reference: ZonedDateTime): Validation[ZonedDateTime, Unit] = Validation.Date.After(reference)(_ isAfter _)
-
-    def before(reference: ZonedDateTime): Validation[ZonedDateTime, Unit] =
-      Validation.Date.Before(reference)(_ isBefore _)
+    def before(reference: Instant, equal: Boolean = true): Validation[Instant, Unit] =
+      Validation.Date.Before(equal, reference)
   }
 
   object date extends date

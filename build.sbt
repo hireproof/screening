@@ -48,6 +48,8 @@ lazy val jsonCirce = crossProject(JVMPlatform, JSPlatform)
     libraryDependencies ++=
       "io.circe" %%% "circe-core" % "0.14.1" ::
         Nil,
-    scalacOptions ++= "-Ypatmat-exhaust-depth" :: "40" :: Nil
+    scalacOptions ++= {
+      if (scalaVersion.value == Version.Scala213) "-Ypatmat-exhaust-depth" :: "40" :: Nil else Nil
+    }
   )
-  .dependsOn(core % "compile->compile;test->test")
+  .dependsOn(generic % "compile->compile;test->test")

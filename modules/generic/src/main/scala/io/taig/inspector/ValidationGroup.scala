@@ -10,15 +10,25 @@ import scala.collection.immutable.HashMap
 abstract class ValidationGroup[-I, O] { self =>
   def run(input: I): Validated[ValidationGroup.Errors, O]
 
-  final def andThen[I1 <: I, T](group: ValidationGroup[O, T]): ValidationGroup[I1, T] =
-    new ValidationGroup[I1, T] {
-      override def run(input: I1): Validated[ValidationGroup.Errors, T] = self.run(input).andThen(group.run)
+  final def map[T](f: O => T): ValidationGroup[I, T] = new ValidationGroup[I, T] {
+    override def run(input: I): Validated[ValidationGroup.Errors, T] = self.run(input).map(f)
+  }
+
+  final def downField[T](name: String, select: O => T): ValidationGroup[I, T] =
+    ValidationGroup.field(name)(map(select))
+
+  final def andThen[T](group: ValidationGroup[O, T]): ValidationGroup[I, T] =
+    new ValidationGroup[I, T] {
+      override def run(input: I): Validated[ValidationGroup.Errors, T] = self.run(input).andThen(group.run)
     }
 
-  final def andThenValidate[I1 <: I, T](f: O => Validated[ValidationGroup.Errors, T]): ValidationGroup[I1, T] =
-    new ValidationGroup[I1, T] {
-      override def run(input: I1): Validated[ValidationGroup.Errors, T] = self.run(input).andThen(f)
+  final def andThenRun[T](f: O => Validated[ValidationGroup.Errors, T]): ValidationGroup[I, T] =
+    new ValidationGroup[I, T] {
+      override def run(input: I): Validated[ValidationGroup.Errors, T] = self.run(input).andThen(f)
     }
+
+  final def andThenValidate[T](validation: Validation[O, T]): ValidationGroup[I, T] =
+    andThen(ValidationGroup.lift(validation))
 }
 
 object ValidationGroup {
@@ -27,8 +37,8 @@ object ValidationGroup {
       tail: HashMap[Selection.History, NonEmptyList[Validation.Error]]
   ) {
     def prepend(selection: Selection): Errors = new Errors(
-      head.leftMap(selection /: _),
-      tail.map { case (history, errors) => (selection /: history, errors) }
+      head.leftMap(selection +: _),
+      tail.map { case (history, errors) => (selection +: history, errors) }
     )
 
     def merge(errors: Errors): Errors = {
@@ -59,6 +69,9 @@ object ValidationGroup {
       Option.when(values.nonEmpty)(new Errors(values.head, values.tail.to(HashMap)))
 
     def unsafeFromMap(values: Map[Selection.History, NonEmptyList[Validation.Error]]): Errors = fromMap(values).get
+
+    def fromErrors(history: Selection.History, error: Validation.Error, errors: Validation.Error*): Errors =
+      one(history, NonEmptyList(error, errors.toList))
 
     implicit val semigroup: Semigroup[Errors] = new Semigroup[Errors] {
       override def combine(x: Errors, y: Errors): Errors = x merge y

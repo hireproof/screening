@@ -5,7 +5,7 @@ import cats.data.{NonEmptyList, Validated, ValidatedNel}
 import cats.syntax.all._
 import cats.{Eq, Show}
 
-import java.time.temporal.Temporal
+import java.time.Instant
 import scala.Numeric.Implicits._
 import scala.Ordering.Implicits._
 import scala.util.matching.Regex
@@ -65,22 +65,31 @@ object Validation {
     }
   }
 
-  sealed abstract class Date[I <: Temporal](reference: I, check: (I, I) => Boolean) extends Validation[I, Unit] {
-    def error(input: I): Validation.Error.Date
-
-    final override def errors(input: I): List[Validation.Error.Date] = List(error(input))
-
-    final override def run(input: I): Validated[NonEmptyList[Validation.Error], Unit] =
-      Validated.condNel(check(input, reference), (), error(input))
-  }
+  sealed abstract class Date extends Validation[Instant, Unit]
 
   object Date {
-    final case class After[I <: Temporal](reference: I)(check: (I, I) => Boolean) extends Date[I](reference, check) {
-      override def error(input: I): Error.Date = Validation.Error.Date.After(reference, input)
+    final case class After(equal: Boolean, reference: Instant) extends Date {
+      def error(input: Instant): Error.Date = Validation.Error.Date.After(equal, reference, input)
+
+      override def errors(input: Instant): List[Error] = List(error(input))
+
+      override def run(input: Instant): ValidatedNel[Error, Unit] = {
+        val compare = reference.compareTo(input)
+        val check = if (equal) compare >= 0 else compare > 0
+        Validated.condNel(check, (), error(input))
+      }
     }
 
-    final case class Before[I <: Temporal](reference: I)(check: (I, I) => Boolean) extends Date[I](reference, check) {
-      override def error(input: I): Error.Date = Validation.Error.Date.Before(reference, input)
+    final case class Before(equal: Boolean, reference: Instant) extends Date {
+      def error(input: Instant): Error.Date = Validation.Error.Date.Before(equal, reference, input)
+
+      override def errors(input: Instant): List[Error] = List(error(input))
+
+      override def run(input: Instant): ValidatedNel[Error, Unit] = {
+        val compare = reference.compareTo(input)
+        val check = if (equal) compare >= 0 else compare > 0
+        Validated.condNel(check, (), error(input))
+      }
     }
   }
 
@@ -114,7 +123,7 @@ object Validation {
     sealed abstract class Operator extends Product with Serializable
 
     object Operator {
-      final case object Equal extends Operator
+      case object Equal extends Operator
       final case class GreaterThan(equal: Boolean) extends Operator
       final case class LessThan(equal: Boolean) extends Operator
     }
@@ -134,22 +143,24 @@ object Validation {
     sealed abstract class Value extends Product with Serializable
 
     object Value {
-      final case object BigDecimal extends Value
-      final case object BigInt extends Value
-      final case object Double extends Value
-      final case object Float extends Value
-      final case object Int extends Value
-      final case object Long extends Value
-      final case object Short extends Value
+      case object BigDecimal extends Value
+      case object BigInt extends Value
+      case object Instant extends Value
+      case object Double extends Value
+      case object Float extends Value
+      case object Int extends Value
+      case object Long extends Value
+      case object Short extends Value
     }
 
-    final case object BigDecimal extends Parsing(Validation.Parsing.Value.BigDecimal, parseBigDecimal)
-    final case object BigInt extends Parsing(Validation.Parsing.Value.BigInt, parseBigInt)
-    final case object Double extends Parsing(Validation.Parsing.Value.Double, _.toDoubleOption)
-    final case object Float extends Parsing(Validation.Parsing.Value.Float, _.toFloatOption)
-    final case object Int extends Parsing(Validation.Parsing.Value.Int, _.toIntOption)
-    final case object Long extends Parsing(Validation.Parsing.Value.Long, _.toLongOption)
-    final case object Short extends Parsing(Validation.Parsing.Value.Short, _.toShortOption)
+    case object BigDecimal extends Parsing(Validation.Parsing.Value.BigDecimal, parseBigDecimal)
+    case object BigInt extends Parsing(Validation.Parsing.Value.BigInt, parseBigInt)
+    case object Double extends Parsing(Validation.Parsing.Value.Double, _.toDoubleOption)
+    case object Float extends Parsing(Validation.Parsing.Value.Float, _.toFloatOption)
+    case object Instant extends Parsing(Validation.Parsing.Value.Instant, parseInstant)
+    case object Int extends Parsing(Validation.Parsing.Value.Int, _.toIntOption)
+    case object Long extends Parsing(Validation.Parsing.Value.Long, _.toLongOption)
+    case object Short extends Parsing(Validation.Parsing.Value.Short, _.toShortOption)
   }
 
   sealed abstract class Text extends Validation[String, Unit]
@@ -179,13 +190,13 @@ object Validation {
       }
     }
 
-    final case class Equal(expected: String) extends Text {
-      def error(input: String): Validation.Error = Validation.Error.Text.Equal(expected, input)
+    final case class Equal(reference: String) extends Text {
+      def error(input: String): Validation.Error = Validation.Error.Text.Equal(reference, input)
 
       override def errors(input: String): List[Error] = List(error(input))
 
       override def run(input: String): Validated[NonEmptyList[Error], Unit] =
-        Validated.cond(expected == input, (), NonEmptyList.one(error(input)))
+        Validated.cond(reference == input, (), NonEmptyList.one(error(input)))
     }
 
     final case class Matches(regex: Regex) extends Text {
@@ -283,8 +294,8 @@ object Validation {
         case Not(error)                                   => error
         case Collection.AtLeast(reference, actual)        => Collection.AtMost(reference, actual)
         case Collection.AtMost(reference, actual)         => Collection.AtLeast(reference, actual)
-        case Date.After(reference, actual)                => Date.Before(reference, actual)
-        case Date.Before(reference, actual)               => Date.After(reference, actual)
+        case Date.After(equal, reference, actual)         => Date.Before(!equal, reference, actual)
+        case Date.Before(equal, reference, actual)        => Date.After(!equal, reference, actual)
         case Number.GreaterThan(equal, reference, actual) => Number.LessThan(!equal, reference, actual)
         case Number.LessThan(equal, reference, actual)    => Number.GreaterThan(!equal, reference, actual)
         case Text.AtLeast(equal, reference, actual)       => Text.AtMost(!equal, reference, actual)
@@ -299,25 +310,27 @@ object Validation {
       final case class AtLeast(reference: Int, actual: Int) extends Collection
       final case class AtMost(reference: Int, actual: Int) extends Collection
       final case class Contains(reference: String, actual: Seq[String]) extends Collection
-      final case class Exactly(expected: Int, actual: Int) extends Collection
+      final case class Exactly(reference: Int, actual: Int) extends Collection
     }
+
+    final case class Conflict(actual: String) extends Error
 
     sealed abstract class Date extends Error
 
     object Date {
-      final case class After(reference: Temporal, actual: Temporal) extends Date
-      final case class Before(reference: Temporal, actual: Temporal) extends Date
+      final case class After(equal: Boolean, reference: Instant, actual: Instant) extends Date
+      final case class Before(equal: Boolean, reference: Instant, actual: Instant) extends Date
     }
 
     sealed abstract class Number extends Error
 
     object Number {
-      final case class Equal(expected: Double, actual: Double) extends Number
+      final case class Equal(reference: Double, actual: Double) extends Number
       final case class GreaterThan(equal: Boolean, reference: Double, actual: Double) extends Number
-      final case class LessThan(equal: Boolean, expected: Double, actual: Double) extends Number
+      final case class LessThan(equal: Boolean, reference: Double, actual: Double) extends Number
     }
 
-    final case class Parsing(expected: Validation.Parsing.Value, actual: String) extends Error
+    final case class Parsing(reference: Validation.Parsing.Value, actual: String) extends Error
 
     sealed abstract class Text extends Error
 
@@ -325,10 +338,12 @@ object Validation {
       final case class AtLeast(equal: Boolean, reference: Int, actual: Int) extends Text
       final case class AtMost(equal: Boolean, reference: Int, actual: Int) extends Text
       final case class Email(actual: String) extends Text
-      final case class Equal(expected: String, actual: String) extends Text
-      final case class Exactly(expected: Int, actual: Int) extends Text
+      final case class Equal(reference: String, actual: String) extends Text
+      final case class Exactly(reference: Int, actual: Int) extends Text
       final case class Matches(regex: Regex, actual: String) extends Text
     }
+
+    final case class Unknown(actual: String) extends Error
   }
 
   implicit val arrow: Arrow[Validation] = new Arrow[Validation] {
