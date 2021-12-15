@@ -9,9 +9,10 @@ object validations {
   def lift[I, O](f: I => O): Validation[I, O] = Validation.Lift(f)
 
   trait collection {
-    def atLeast(reference: Int): Validation[Iterable[_], Unit] = Validation.Collection.AtLeast(reference)
+    def atLeast[F[X] <: Iterable[X], A](reference: Int): Validation[F[A], Unit] =
+      Validation.Collection.AtLeast(reference)
 
-    def atMost(reference: Int): Validation[Iterable[_], Unit] = Validation.Collection.AtMost(reference)
+    def atMost[F[X] <: Iterable[X], A](reference: Int): Validation[F[A], Unit] = Validation.Collection.AtMost(reference)
 
     def contains[A: Eq: Show](reference: A): Validation[Seq[A], Unit] =
       Validation.Collection.Contains(reference)

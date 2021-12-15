@@ -32,23 +32,23 @@ object Validation {
   sealed abstract class Collection[F[_], A] extends Validation[F[A], Unit]
 
   object Collection {
-    final case class AtLeast(reference: Int) extends Collection[Iterable, Any] {
+    final case class AtLeast[F[X] <: Iterable[X], A](reference: Int) extends Collection[F, A] {
       def error(actual: Int): Validation.Error = Validation.Error.Collection.AtLeast(reference, actual)
 
-      override def errors(input: Iterable[Any]): List[Validation.Error] = List(error(input.size))
+      override def errors(input: F[A]): List[Error] = List(error(input.size))
 
-      override def run(input: Iterable[Any]): Validated[NonEmptyList[Validation.Error], Unit] = {
+      override def run(input: F[A]): ValidatedNel[Error, Unit] = {
         val size = input.size
         Validated.cond(size >= reference, (), NonEmptyList.one(error(size)))
       }
     }
 
-    final case class AtMost(reference: Int) extends Collection[Iterable, Any] {
+    final case class AtMost[F[X] <: Iterable[X], A](reference: Int) extends Collection[F, A] {
       def error(actual: Int): Validation.Error = Validation.Error.Collection.AtMost(reference, actual)
 
-      override def errors(input: Iterable[Any]): List[Validation.Error] = List(error(input.size))
+      override def errors(input: F[A]): List[Error] = List(error(input.size))
 
-      override def run(input: Iterable[Any]): Validated[NonEmptyList[Validation.Error], Unit] = {
+      override def run(input: F[A]): ValidatedNel[Error, Unit] = {
         val size = input.size
         Validated.cond(size <= reference, (), NonEmptyList.one(error(size)))
       }
@@ -75,7 +75,7 @@ object Validation {
 
       override def run(input: Instant): ValidatedNel[Error, Unit] = {
         val compare = reference.compareTo(input)
-        val check = if (equal) compare >= 0 else compare > 0
+        val check = if (equal) compare <= 0 else compare < 0
         Validated.condNel(check, (), error(input))
       }
     }

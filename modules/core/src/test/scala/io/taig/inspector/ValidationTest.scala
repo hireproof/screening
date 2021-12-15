@@ -45,7 +45,7 @@ final class ValidationTest extends FunSuite {
     assert(collection.exactly(expected = 0).run(Nil).isValid)
     assertEquals(
       obtained = collection.exactly(expected = 3).run(List(1)).error,
-      expected = Some(Validation.Error.Collection.Exactly(expected = 3, actual = 1))
+      expected = Some(Validation.Error.Collection.Exactly(reference = 3, actual = 1))
     )
   }
 
@@ -57,183 +57,23 @@ final class ValidationTest extends FunSuite {
     )
   }
 
-  test("date.after: OffsetDateTime") {
-    val sample = OffsetDateTime.of(LocalDateTime.of(2021, 11, 29, 12, 30), ZoneOffset.UTC)
-
-    assert(date.after(sample).run(sample.plusDays(1)).isValid)
-    assertEquals(
-      obtained = date.after(sample).run(sample.minusDays(1)).error,
-      expected = Some(Validation.Error.Date.After(sample, sample.minusDays(1)))
-    )
-  }
-
-  test("date.before: OffsetDateTime") {
-    val sample = OffsetDateTime.of(LocalDateTime.of(2021, 11, 29, 12, 30), ZoneOffset.UTC)
-
-    assert(date.before(sample).run(sample.minusDays(1)).isValid)
-    assertEquals(
-      obtained = date.before(sample).run(sample.plusDays(1)).error,
-      expected = Some(Validation.Error.Date.Before(sample, sample.plusDays(1)))
-    )
-  }
-
   test("date.after: Instant") {
     val sample = LocalDateTime.of(2021, 11, 29, 12, 30).toInstant(ZoneOffset.UTC)
 
-    assert(date.after(sample).run(sample.plusSeconds(100)).isValid)
+    assert(date.after(sample, equal = true).run(sample.plusSeconds(100)).isValid)
     assertEquals(
       obtained = date.after(sample).run(sample.minusSeconds(100)).error,
-      expected = Some(Validation.Error.Date.After(sample, sample.minusSeconds(100)))
+      expected = Some(Validation.Error.Date.After(equal = true, sample, sample.minusSeconds(100)))
     )
   }
 
   test("date.before: Instant") {
     val sample = LocalDateTime.of(2021, 11, 29, 12, 30).toInstant(ZoneOffset.UTC)
 
-    assert(date.before(sample).run(sample.minusSeconds(100)).isValid)
+    assert(date.before(sample, equal = true).run(sample.minusSeconds(100)).isValid)
     assertEquals(
       obtained = date.before(sample).run(sample.plusSeconds(100)).error,
-      expected = Some(Validation.Error.Date.Before(sample, sample.plusSeconds(100)))
-    )
-  }
-
-  test("date.after: LocalDateTime") {
-    val sample = LocalDateTime.of(2021, 11, 29, 12, 30)
-
-    assert(date.after(sample).run(sample.plusSeconds(100)).isValid)
-    assertEquals(
-      obtained = date.after(sample).run(sample.minusSeconds(100)).error,
-      expected = Some(Validation.Error.Date.After(sample, sample.minusSeconds(100)))
-    )
-  }
-
-  test("date.before: LocalDateTime") {
-    val sample = LocalDateTime.of(2021, 11, 29, 12, 30)
-
-    assert(date.before(sample).run(sample.minusSeconds(100)).isValid)
-    assertEquals(
-      obtained = date.before(sample).run(sample.plusSeconds(100)).error,
-      expected = Some(Validation.Error.Date.Before(sample, sample.plusSeconds(100)))
-    )
-  }
-
-  test("date.after: ZonedDateTime") {
-    val sample = LocalDateTime.of(2021, 11, 29, 12, 30).atZone(ZoneOffset.UTC)
-
-    assert(date.after(sample).run(sample.plusSeconds(100)).isValid)
-    assertEquals(
-      obtained = date.after(sample).run(sample.minusSeconds(100)).error,
-      expected = Some(Validation.Error.Date.After(sample, sample.minusSeconds(100)))
-    )
-  }
-
-  test("date.before: ZonedDateTime") {
-    val sample = LocalDateTime.of(2021, 11, 29, 12, 30).atZone(ZoneOffset.UTC)
-
-    assert(date.before(sample).run(sample.minusSeconds(100)).isValid)
-    assertEquals(
-      obtained = date.before(sample).run(sample.plusSeconds(100)).error,
-      expected = Some(Validation.Error.Date.Before(sample, sample.plusSeconds(100)))
-    )
-  }
-
-  test("date.after: LocalDate") {
-    val sample = LocalDate.of(2021, 11, 29)
-
-    assert(date.after(sample).run(sample.plusDays(1)).isValid)
-    assertEquals(
-      obtained = date.after(sample).run(sample.minusDays(1)).error,
-      expected = Some(Validation.Error.Date.After(sample, sample.minusDays(1)))
-    )
-  }
-
-  test("date.before: LocalDate") {
-    val sample = LocalDate.of(2021, 11, 29)
-
-    assert(date.before(sample).run(sample.minusDays(1)).isValid)
-    assertEquals(
-      obtained = date.before(sample).run(sample.plusDays(1)).error,
-      expected = Some(Validation.Error.Date.Before(sample, sample.plusDays(1)))
-    )
-  }
-
-  test("date.after: LocalTime") {
-    val sample = LocalTime.of(12, 30)
-
-    assert(date.after(sample).run(sample.plusSeconds(100)).isValid)
-    assertEquals(
-      obtained = date.after(sample).run(sample.minusSeconds(100)).error,
-      expected = Some(Validation.Error.Date.After(sample, sample.minusSeconds(100)))
-    )
-  }
-
-  test("date.before: LocalTime") {
-    val sample = LocalTime.of(12, 30)
-
-    assert(date.before(sample).run(sample.minusSeconds(100)).isValid)
-    assertEquals(
-      obtained = date.before(sample).run(sample.plusSeconds(100)).error,
-      expected = Some(Validation.Error.Date.Before(sample, sample.plusSeconds(100)))
-    )
-  }
-
-  test("date.after: LocalTime") {
-    val sample = LocalTime.of(12, 30).atOffset(ZoneOffset.UTC)
-
-    assert(date.after(sample).run(sample.plusSeconds(100)).isValid)
-    assertEquals(
-      obtained = date.after(sample).run(sample.minusSeconds(100)).error,
-      expected = Some(Validation.Error.Date.After(sample, sample.minusSeconds(100)))
-    )
-  }
-
-  test("date.before: LocalTime") {
-    val sample = LocalTime.of(12, 30).atOffset(ZoneOffset.UTC)
-
-    assert(date.before(sample).run(sample.minusSeconds(100)).isValid)
-    assertEquals(
-      obtained = date.before(sample).run(sample.plusSeconds(100)).error,
-      expected = Some(Validation.Error.Date.Before(sample, sample.plusSeconds(100)))
-    )
-  }
-
-  test("date.after: Year") {
-    val sample = Year.of(2021)
-
-    assert(date.after(sample).run(sample.plusYears(1)).isValid)
-    assertEquals(
-      obtained = date.after(sample).run(sample.minusYears(1)).error,
-      expected = Some(Validation.Error.Date.After(sample, sample.minusYears(1)))
-    )
-  }
-
-  test("date.before: Year") {
-    val sample = Year.of(2021)
-
-    assert(date.before(sample).run(sample.minusYears(1)).isValid)
-    assertEquals(
-      obtained = date.before(sample).run(sample.plusYears(1)).error,
-      expected = Some(Validation.Error.Date.Before(sample, sample.plusYears(1)))
-    )
-  }
-
-  test("date.after: YearMonth") {
-    val sample = YearMonth.of(2021, 11)
-
-    assert(date.after(sample).run(sample.plusMonths(1)).isValid)
-    assertEquals(
-      obtained = date.after(sample).run(sample.minusMonths(1)).error,
-      expected = Some(Validation.Error.Date.After(sample, sample.minusMonths(1)))
-    )
-  }
-
-  test("date.before: YearMonth") {
-    val sample = YearMonth.of(2021, 11)
-
-    assert(date.before(sample).run(sample.minusMonths(1)).isValid)
-    assertEquals(
-      obtained = date.before(sample).run(sample.plusMonths(1)).error,
-      expected = Some(Validation.Error.Date.Before(sample, sample.plusMonths(1)))
+      expected = Some(Validation.Error.Date.Before(equal = true, sample, sample.plusSeconds(100)))
     )
   }
 
@@ -293,7 +133,7 @@ final class ValidationTest extends FunSuite {
     )
     assertEquals(
       obtained = number.equal(0.3d).run(0.1d + 0.2d).error,
-      expected = Some(Validation.Error.Number.Equal(expected = 0.3d, actual = 0.1d + 0.2d))
+      expected = Some(Validation.Error.Number.Equal(reference = 0.3d, actual = 0.1d + 0.2d))
     )
 
     assert(number.equal(expected = 0.3d, delta = 0.01d).run(0.1d + 0.2d).isValid)
@@ -417,7 +257,7 @@ final class ValidationTest extends FunSuite {
     assert(text.exactly(expected = 0).run("").isValid)
     assertEquals(
       obtained = text.exactly(expected = 1).run("foo").error,
-      expected = Some(Validation.Error.Text.Exactly(expected = 1, actual = 3))
+      expected = Some(Validation.Error.Text.Exactly(reference = 1, actual = 3))
     )
   }
 
