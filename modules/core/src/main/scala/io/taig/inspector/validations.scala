@@ -3,6 +3,7 @@ package io.taig.inspector
 import cats.{Eq, Show}
 
 import java.time._
+import scala.concurrent.duration.FiniteDuration
 import scala.util.matching.Regex
 
 object validations {
@@ -40,6 +41,24 @@ object validations {
   }
 
   object date extends date
+
+  trait duration {
+    def atLeast(reference: FiniteDuration, equal: Boolean = true): Validation[FiniteDuration, Unit] =
+      Validation.Duration.AtLeast(equal, reference)
+
+    def atMost(reference: FiniteDuration, equal: Boolean = true): Validation[FiniteDuration, Unit] =
+      Validation.Duration.AtMost(equal, reference)
+
+    def exactly(reference: FiniteDuration): Validation[FiniteDuration, Unit] =
+      (atLeast(reference, equal = true) and atMost(reference, equal = true)).modifyError {
+        case Validation.Error.Duration.AtLeast(_, reference, actual) =>
+          Validation.Error.Duration.Exactly(reference, actual)
+        case Validation.Error.Duration.AtMost(_, reference, actual) =>
+          Validation.Error.Duration.Exactly(reference, actual)
+      }
+  }
+
+  object duration extends duration
 
   trait number {
     def equal[I: Numeric](expected: I, delta: I): Validation[I, Unit] = Validation.Number(

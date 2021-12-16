@@ -6,6 +6,8 @@ import io.circe._
 import io.circe.syntax._
 
 import java.time.Instant
+import java.util.concurrent.TimeUnit
+import scala.concurrent.duration.FiniteDuration
 import scala.util.matching.Regex
 
 trait circe {
@@ -22,6 +24,7 @@ trait circe {
     val Collection = "collection"
     val Conflict = "conflict"
     val Date = "date"
+    val Duration = "duration"
     val Not = "not"
     val Number = "number"
     val Parsing = "parsing"
@@ -89,6 +92,24 @@ trait circe {
     case "short"      => Validation.Parsing.Value.Short
   }
 
+  implicit private val decoderDuration: Decoder[FiniteDuration] = Decoder.instance { cursor =>
+    val length = cursor.get[Long]("length")
+    val unit = cursor.get[String]("unit").flatMap { value =>
+      Either
+        .catchOnly[IllegalArgumentException](TimeUnit.valueOf(value))
+        .leftMap(_ => DecodingFailure("FiniteDuration", cursor.history))
+    }
+
+    (length, unit).mapN(FiniteDuration.apply)
+  }
+
+  implicit private val encoderDuration: Encoder[FiniteDuration] = Encoder.instance { duration =>
+    Json.obj(
+      "length" := duration.length,
+      "unit" := duration.unit.name()
+    )
+  }
+
   implicit val decoderInspectorValidationError: Decoder[Validation.Error] = Decoder.instance { cursor =>
     (cursor.get[String](Keys.Variant), cursor.get[Option[String]](Keys.Type)).tupled.flatMap {
       // format: off
@@ -101,6 +122,11 @@ trait circe {
       case (Types.Date, Some(Variants.AfterEqual)) => decoder.reference[Instant, Instant](cursor).map { case (reference, actual) => Validation.Error.Date.After(equal = true, reference, actual) }
       case (Types.Date, Some(Variants.Before)) => decoder.reference[Instant, Instant](cursor).map { case (reference, actual) => Validation.Error.Date.Before(equal = false, reference, actual) }
       case (Types.Date, Some(Variants.BeforeEqual)) => decoder.reference[Instant, Instant](cursor).map { case (reference, actual) => Validation.Error.Date.Before(equal = true, reference, actual) }
+      case (Types.Duration, Some(Variants.AtMost)) => decoder.reference[FiniteDuration, FiniteDuration](cursor).map { case (reference, actual) => Validation.Error.Duration.AtMost(equal = false, reference, actual) }
+      case (Types.Duration, Some(Variants.AtMostEqual)) => decoder.reference[FiniteDuration, FiniteDuration](cursor).map { case (reference, actual) => Validation.Error.Duration.AtMost(equal = true, reference, actual) }
+      case (Types.Duration, Some(Variants.AtLeast)) => decoder.reference[FiniteDuration, FiniteDuration](cursor).map { case (reference, actual) => Validation.Error.Duration.AtLeast(equal = false, reference, actual) }
+      case (Types.Duration, Some(Variants.AtLeastEqual)) => decoder.reference[FiniteDuration, FiniteDuration](cursor).map { case (reference, actual) => Validation.Error.Duration.AtLeast(equal = true, reference, actual) }
+      case (Types.Duration, Some(Variants.Exactly)) => decoder.reference[FiniteDuration, FiniteDuration](cursor).map { case (reference, actual) => Validation.Error.Duration.Exactly(reference, actual) }
       case (Types.Not, None) => cursor.get[Validation.Error](Keys.Error)
       case (Types.Number, Some(Variants.Equal)) => decoder.reference[Double, Double](cursor).map(Validation.Error.Number.Equal.tupled)
       case (Types.Number, Some(Variants.GreaterThan)) => decoder.reference[Double, Double](cursor).map { case (reference, actual) => Validation.Error.Number.GreaterThan(equal = false, reference, actual) }
@@ -133,6 +159,11 @@ trait circe {
     case Validation.Error.Date.After(true, reference, actual) => encoder.reference(Types.Date, Variants.AfterEqual, reference, actual)
     case Validation.Error.Date.Before(false, reference, actual) => encoder.reference(Types.Date, Variants.Before, reference, actual)
     case Validation.Error.Date.Before(true, reference, actual) => encoder.reference(Types.Date, Variants.BeforeEqual, reference, actual)
+    case Validation.Error.Duration.AtLeast(false, reference, actual) => encoder.reference(Types.Duration, Variants.AtLeast, reference, actual)
+    case Validation.Error.Duration.AtLeast(true, reference, actual) => encoder.reference(Types.Duration, Variants.AtLeastEqual, reference, actual)
+    case Validation.Error.Duration.AtMost(false, reference, actual) => encoder.reference(Types.Duration, Variants.AtMost, reference, actual)
+    case Validation.Error.Duration.AtMost(true, reference, actual) => encoder.reference(Types.Duration, Variants.AtMostEqual, reference, actual)
+    case Validation.Error.Duration.Exactly(reference, actual) => encoder.reference(Types.Duration, Variants.Exactly, reference, actual)
     case Validation.Error.Not(error) => JsonObject(Keys.Type := Types.Not, Keys.Error := error.asJsonObject)
     case Validation.Error.Number.Equal(reference, actual) => encoder.reference(Types.Number, Variants.Equal, reference, actual)
     case Validation.Error.Number.GreaterThan(false, reference, actual) => encoder.reference(Types.Number, Variants.GreaterThan, reference, actual)

@@ -8,6 +8,7 @@ import cats.{Eq, Show}
 import java.time.Instant
 import scala.Numeric.Implicits._
 import scala.Ordering.Implicits._
+import scala.concurrent.duration.FiniteDuration
 import scala.util.matching.Regex
 
 sealed abstract class Validation[-I, O] {
@@ -86,6 +87,34 @@ object Validation {
       override def errors(input: Instant): List[Error] = List(error(input))
 
       override def run(input: Instant): ValidatedNel[Error, Unit] = {
+        val compare = reference.compareTo(input)
+        val check = if (equal) compare >= 0 else compare > 0
+        Validated.condNel(check, (), error(input))
+      }
+    }
+  }
+
+  sealed abstract class Duration extends Validation[FiniteDuration, Unit]
+
+  object Duration {
+    final case class AtLeast(equal: Boolean, reference: FiniteDuration) extends Duration {
+      def error(input: FiniteDuration): Validation.Error = Validation.Error.Duration.AtLeast(equal, reference, input)
+
+      override def errors(input: FiniteDuration): List[Error] = List(error(input))
+
+      override def run(input: FiniteDuration): ValidatedNel[Error, Unit] = {
+        val compare = reference.compareTo(input)
+        val check = if (equal) compare >= 0 else compare > 0
+        Validated.condNel(check, (), error(input))
+      }
+    }
+
+    final case class AtMost(equal: Boolean, reference: FiniteDuration) extends Duration {
+      def error(input: FiniteDuration): Validation.Error = Validation.Error.Duration.AtMost(equal, reference, input)
+
+      override def errors(input: FiniteDuration): List[Error] = List(error(input))
+
+      override def run(input: FiniteDuration): ValidatedNel[Error, Unit] = {
         val compare = reference.compareTo(input)
         val check = if (equal) compare >= 0 else compare > 0
         Validated.condNel(check, (), error(input))
@@ -296,6 +325,8 @@ object Validation {
         case Collection.AtMost(reference, actual)         => Collection.AtLeast(reference, actual)
         case Date.After(equal, reference, actual)         => Date.Before(!equal, reference, actual)
         case Date.Before(equal, reference, actual)        => Date.After(!equal, reference, actual)
+        case Duration.AtLeast(equal, reference, actual)   => Duration.AtMost(!equal, reference, actual)
+        case Duration.AtMost(equal, reference, actual)    => Duration.AtLeast(!equal, reference, actual)
         case Number.GreaterThan(equal, reference, actual) => Number.LessThan(!equal, reference, actual)
         case Number.LessThan(equal, reference, actual)    => Number.GreaterThan(!equal, reference, actual)
         case Text.AtLeast(equal, reference, actual)       => Text.AtMost(!equal, reference, actual)
@@ -320,6 +351,14 @@ object Validation {
     object Date {
       final case class After(equal: Boolean, reference: Instant, actual: Instant) extends Date
       final case class Before(equal: Boolean, reference: Instant, actual: Instant) extends Date
+    }
+
+    sealed abstract class Duration extends Error
+
+    object Duration {
+      final case class AtLeast(equal: Boolean, reference: FiniteDuration, actual: FiniteDuration) extends Collection
+      final case class AtMost(equal: Boolean, reference: FiniteDuration, actual: FiniteDuration) extends Collection
+      final case class Exactly(reference: FiniteDuration, actual: FiniteDuration) extends Collection
     }
 
     sealed abstract class Number extends Error
