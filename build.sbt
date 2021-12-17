@@ -34,9 +34,7 @@ lazy val generic = crossProject(JVMPlatform, JSPlatform)
   .crossType(CrossType.Pure)
   .in(file("modules/generic"))
   .settings(
-    name := "inspector-generic",
-    libraryDependencies ++=
-      Nil
+    name := "inspector-generic"
   )
   .dependsOn(core % "compile->compile;test->test")
 

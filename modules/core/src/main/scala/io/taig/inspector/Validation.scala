@@ -27,6 +27,8 @@ sealed abstract class Validation[-I, O] {
   final def withErrors(errors: NonEmptyList[Validation.Error]): Validation[I, O] = modifyErrors(_ => errors)
 
   final def withError(error: Validation.Error): Validation[I, O] = withErrors(NonEmptyList.one(error))
+
+  final def or[II <: I](validation: Validation[II, O]): Validation[II, O] = Validation.Or(this.validation, validation)
 }
 
 object Validation {
@@ -258,10 +260,10 @@ object Validation {
     }
   }
 
-  final case class Or[I](left: Validation[I, Unit], right: Validation[I, Unit]) extends Validation[I, Unit] {
+  final case class Or[I, O](left: Validation[I, O], right: Validation[I, O]) extends Validation[I, O] {
     override def errors(input: I): List[Validation.Error] = left.errors(input) ++ right.errors(input)
 
-    override def run(input: I): ValidatedNel[Validation.Error, Unit] = (left.run(input), right.run(input)) match {
+    override def run(input: I): ValidatedNel[Validation.Error, O] = (left.run(input), right.run(input)) match {
       case (left @ Validated.Valid(_), _)                      => left
       case (_, right @ Validated.Valid(_))                     => right
       case (Validated.Invalid(left), Validated.Invalid(right)) => Validated.invalid(left concatNel right)
@@ -309,8 +311,6 @@ object Validation {
 
   implicit final class UnitOps[I](val validation: Validation[I, Unit]) extends AnyVal {
     def and(validation: Validation[I, Unit]): Validation[I, Unit] = Validation.And(this.validation, validation)
-
-    def or(validation: Validation[I, Unit]): Validation[I, Unit] = Validation.Or(this.validation, validation)
   }
 
   sealed abstract class Error extends Product with Serializable
@@ -384,6 +384,8 @@ object Validation {
 
     final case class Unknown(actual: String) extends Error
   }
+
+  def valid[A](value: A): Validation[Any, A] = Lift(_ => value)
 
   implicit val arrow: Arrow[Validation] = new Arrow[Validation] {
     override def lift[A, B](f: A => B): Validation[A, B] = Lift(f)

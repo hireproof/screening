@@ -11,21 +11,19 @@ object Selection {
   final case class Index(value: Int) extends Selection
 
   final case class History(values: List[Selection]) extends AnyVal {
-    def :+(operation: Selection): History = History(values :+ operation)
+    def ::(field: String): History = History(Field(field) :: values)
 
-    def /(field: String): History = History(values :+ Field(field))
+    def ::(index: Int): History = History(Index(index) :: values)
 
-    def /(index: Int): History = History(values :+ Index(index))
-
-    def +:(operation: Selection): History = History(operation :: values)
+    def ::(operation: Selection): History = History(operation :: values)
 
     def ++(history: History): History = History(values ++ history.values)
 
     def toJsonPath: String = if (values.isEmpty) "."
     else
       values.foldLeft("") {
-        case (result, Selection.Field(name))  => s"$result.$name"
-        case (result, Selection.Index(index)) => s"$result[$index]"
+        case (result, Selection.Field(name))  => s".$name$result"
+        case (result, Selection.Index(index)) => s"[$index]$result"
       }
 
     override def toString: String = toJsonPath
@@ -33,12 +31,6 @@ object Selection {
 
   object History {
     val Root: Selection.History = History(Nil)
-
-    def from(selection: Iterable[Selection]): Selection.History = History(selection.toList)
-
-    def of(selection: Selection*): Selection.History = from(selection)
-
-    def fields(values: String*): Selection.History = from(values.map(Field.apply))
 
     private val Parser = Pattern.compile("(?:\\.(\\w+))|\\[(\\d+)\\]")
 
@@ -64,7 +56,7 @@ object Selection {
 
           if (lastOffset < value.length) throw new IllegalArgumentException("Contains invalid characters")
 
-          History(result.result()).asRight
+          History(result.result().reverse).asRight
         } catch {
           case _: NumberFormatException            => "Invalid index format".asLeft
           case exception: IllegalArgumentException => exception.getMessage.asLeft

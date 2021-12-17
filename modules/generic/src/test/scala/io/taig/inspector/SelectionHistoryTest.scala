@@ -4,8 +4,8 @@ import munit.FunSuite
 
 final class SelectionHistoryTest extends FunSuite {
   test("toJsonPath") {
-    val history = Selection.History.fields("foo", "bar") :+ Selection.Index(3) :+ Selection.Field("baz")
-    assertEquals(obtained = history.toJsonPath, expected = ".foo.bar[3].baz")
+    val history = "foo" :: "bar" :: 3 :: "baz" :: Selection.History.Root
+    assertEquals(obtained = history.toJsonPath, expected = ".baz[3].bar.foo")
   }
 
   test("toJsonPath: root") {
@@ -13,14 +13,14 @@ final class SelectionHistoryTest extends FunSuite {
   }
 
   test("toJsonPath: array") {
-    val history = Selection.History.of(Selection.Index(3), Selection.Field("foo"))
+    val history = "foo" :: 3 :: Selection.History.Root
     assertEquals(obtained = history.toJsonPath, expected = "[3].foo")
   }
 
   test("parse") {
     assertEquals(
       obtained = Selection.History.parse(".foo.bar[3].baz"),
-      expected = Right(Selection.History.Root / "foo" / "bar" / 3 / "baz")
+      expected = Right("baz" :: 3 :: "bar" :: "foo" :: Selection.History.Root)
     )
   }
 
@@ -34,7 +34,7 @@ final class SelectionHistoryTest extends FunSuite {
   test("parse: array") {
     assertEquals(
       obtained = Selection.History.parse("[3].foo"),
-      expected = Right(Selection.History.of(Selection.Index(3), Selection.Field("foo")))
+      expected = Right("foo" :: 3 :: Selection.History.Root)
     )
   }
 

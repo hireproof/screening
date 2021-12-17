@@ -116,7 +116,7 @@ object validations {
     def atMost(reference: Int, equal: Boolean = true): Validation[String, Unit] =
       Validation.Text.AtMost(equal, reference)
 
-    val email: Validation[String, Unit] = matches("""^.+@.+\..+$""".r).modifyError {
+    val email: Validation[String, Unit] = matches("""^.+@.+$""".r).modifyError {
       case Validation.Error.Text.Matches(_, actual) => Validation.Error.Text.Email(actual)
     }
 
