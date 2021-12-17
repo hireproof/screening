@@ -1,7 +1,7 @@
 package io.taig.inspector
 
 import cats.arrow.Arrow
-import cats.data.{NonEmptyList, Validated}
+import cats.data.{NonEmptyList, Validated, ValidatedNel}
 import cats.syntax.all._
 import cats.{Semigroup, Semigroupal, Traverse}
 
@@ -43,8 +43,14 @@ abstract class ValidationGroup[-I, O] { self =>
       override def run(input: I): Validated[ValidationGroup.Errors, T] = self.run(input).andThen(f)
     }
 
-  final def andThenValidate[T](validation: Validation[O, T]): ValidationGroup[I, T] =
+  final def andThenValidation[T](validation: Validation[O, T]): ValidationGroup[I, T] =
     andThen(ValidationGroup.lift(validation))
+
+  final def andThenValidationRun[T](f: O => ValidatedNel[Validation.Error, T]): ValidationGroup[I, T] =
+    new ValidationGroup[I, T] {
+      override def run(input: I): Validated[ValidationGroup.Errors, T] =
+        self.run(input).andThen(f(_).leftMap(ValidationGroup.Errors.root))
+    }
 
   final def or[II <: I](validation: ValidationGroup[II, O]): ValidationGroup[II, O] = new ValidationGroup[II, O] {
     override def run(input: II): Validated[ValidationGroup.Errors, O] =
