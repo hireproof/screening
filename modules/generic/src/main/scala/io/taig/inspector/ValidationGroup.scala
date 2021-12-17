@@ -14,8 +14,24 @@ abstract class ValidationGroup[-I, O] { self =>
     override def run(input: I): Validated[ValidationGroup.Errors, T] = self.run(input).map(f)
   }
 
-  final def downField[T](name: String, select: O => T): ValidationGroup[I, T] =
-    ValidationGroup.field(name)(map(select))
+  final def downField[T](name: String, select: O => T): ValidationGroup[I, T] = new ValidationGroup[I, T] {
+    override def run(input: I): Validated[ValidationGroup.Errors, T] =
+      self.run(input).map(select).leftMap(_.prepend(Selection.Field(name)))
+  }
+
+  final def downBranch[T](name: String, select: PartialFunction[O, T]): ValidationGroup[I, T] =
+    new ValidationGroup[I, T] {
+      override def run(input: I): Validated[ValidationGroup.Errors, T] =
+        self
+          .run(input)
+          .map(select.lift)
+          .leftMap(_.prepend(Selection.Field(name)))
+          .andThen {
+            case Some(value) => Validated.valid(value)
+            case None =>
+              Validated.invalid(ValidationGroup.Errors.root(NonEmptyList.one(Validation.Error.Unknown(name))))
+          }
+    }
 
   final def andThen[T](group: ValidationGroup[O, T]): ValidationGroup[I, T] =
     new ValidationGroup[I, T] {
@@ -29,6 +45,11 @@ abstract class ValidationGroup[-I, O] { self =>
 
   final def andThenValidate[T](validation: Validation[O, T]): ValidationGroup[I, T] =
     andThen(ValidationGroup.lift(validation))
+
+  final def or[II <: I](validation: ValidationGroup[II, O]): ValidationGroup[II, O] = new ValidationGroup[II, O] {
+    override def run(input: II): Validated[ValidationGroup.Errors, O] =
+      self.run(input).orElse(validation.run(input))
+  }
 }
 
 object ValidationGroup {
@@ -89,12 +110,6 @@ object ValidationGroup {
   def lift[I, O](validation: Validation[I, O]): ValidationGroup[I, O] = new ValidationGroup[I, O] {
     override def run(input: I): Validated[ValidationGroup.Errors, O] = validation.run(input).leftMap(Errors.root)
   }
-
-  def field[I, O](name: String)(validation: ValidationGroup[I, O]): ValidationGroup[I, O] =
-    new ValidationGroup[I, O] {
-      override def run(input: I): Validated[ValidationGroup.Errors, O] =
-        validation.run(input).leftMap(_.prepend(Selection.Field(name)))
-    }
 
   def index[I, O](value: Int)(validation: ValidationGroup[I, O]): ValidationGroup[I, O] =
     new ValidationGroup[I, O] {
