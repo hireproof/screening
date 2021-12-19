@@ -25,7 +25,7 @@ final class ValidationGroupTest extends FunSuite {
       val validation: Validation[String, City] = text.required.tap.map(apply)
     }
 
-    val validation = ValidationGroup[User, (Age, City)] { cursor =>
+    val validation = CursorValidation[User, (Age, City)] { cursor =>
       val age = cursor
         .field("age", _.age)
         .run(Age.validation)
@@ -46,7 +46,7 @@ final class ValidationGroupTest extends FunSuite {
     assertEquals(
       obtained = validation.run(User(age = 12, User.Address(""))),
       expected = Validated.invalid(
-        ValidationGroup.Errors.of(
+        Cursor.Failure(
           ("age" :: Selection.History.Root) ->
             NonEmptyList.one(Validation.Error.Number.GreaterThan(equal = true, reference = 18, actual = 12)),
           ("city" :: "address" :: Selection.History.Root) ->
@@ -61,32 +61,101 @@ final class ValidationGroupTest extends FunSuite {
     )
   }
 
-  test("branch") {
-    sealed abstract class User extends Product with Serializable
+  test("option") {
+    final case class User(name: Option[String])
 
-    object User {
-      final case class Admin(name: String) extends User
-      final case class Member(email: String) extends User
-      final case object Guest extends User
+    final case class Name(value: String)
+
+    object Name {
+      val validation: Validation[String, Name] = text.required.map(apply)
     }
 
-    final case class Reference(value: String)
-
-    object Reference {
-      val validation: Validation[String, Reference] = text.email.tap.map(apply)
+    val validation: CursorValidation[User, Option[Name]] = CursorValidation { cursor =>
+      cursor.option("name", _.name).run(Name.validation)
     }
 
-    val validation: ValidationGroup[User, Reference] = ValidationGroup { cursor =>
-      val admin = cursor.branch("admin", { case User.Admin(name) => s"$name@inspector" }).andThen(Reference.validation)
-      val member = cursor.branch("member", { case User.Member(email) => email }).andThen(Reference.validation)
-      val guest = cursor.branch("guest", { case User.Guest => "" }).map(_ => Reference("unknown"))
+    assertEquals(obtained = validation.run(User(Some("taig"))), expected = Validated.valid(Some(Name("taig"))))
+    assertEquals(obtained = validation.run(User(None)), expected = Validated.valid(None))
 
-      (admin or member or guest).lift
+    assertEquals(
+      obtained = validation.run(User(Some(""))),
+      expected = Validated.invalid(
+        Cursor.Failure.one(
+          "name" :: Selection.History.Root,
+          NonEmptyList.one(Validation.Error.Text.AtLeast(equal = false, reference = 0, actual = 0))
+        )
+      )
+    )
+  }
+
+  test("collection") {
+    final case class Users(names: List[String])
+
+    final case class Name(value: String)
+
+    object Name {
+      val validation: Validation[String, Name] = text.required.map(apply)
+    }
+
+    val validation: CursorValidation[Users, List[Name]] = CursorValidation { cursor =>
+      cursor
+        .field("names", _.names)
+        .ensure(collection.atLeast[List, String](1))
+        .collection
+        .run(Name.validation)
     }
 
     assertEquals(
-      obtained = validation.run(User.Admin("taig")),
-      expected = Validated.valid(Reference("taig@inspector"))
+      obtained = validation.run(Users(Nil)),
+      expected = Validated.invalid(
+        Cursor.Failure.one(
+          "names" :: Selection.History.Root,
+          NonEmptyList.one(Validation.Error.Collection.AtLeast(equal = true, 1, 0))
+        )
+      )
+    )
+
+    assertEquals(
+      obtained = validation.run(Users(List("", "foo", ""))),
+      expected = Validated.invalid(
+        Cursor.Failure(
+          (0 :: "names" :: Selection.History.Root) -> NonEmptyList.one(
+            Validation.Error.Text.AtLeast(equal = false, 0, 0)
+          ),
+          (2 :: "names" :: Selection.History.Root) -> NonEmptyList.one(
+            Validation.Error.Text.AtLeast(equal = false, 0, 0)
+          )
+        )
+      )
     )
   }
+
+//  test("branch") {
+//    sealed abstract class User extends Product with Serializable
+//
+//    object User {
+//      final case class Admin(name: String) extends User
+//      final case class Member(email: String) extends User
+//      final case object Guest extends User
+//    }
+//
+//    final case class Reference(value: String)
+//
+//    object Reference {
+//      val validation: Validation[String, Reference] = text.email.tap.map(apply)
+//    }
+//
+//    val validation: ValidationGroup[User, Reference] = ValidationGroup { cursor =>
+//      val admin = cursor.branch("admin", { case User.Admin(name) => s"$name@inspector" }).andThen(Reference.validation)
+//      val member = cursor.branch("member", { case User.Member(email) => email }).andThen(Reference.validation)
+//      val guest = cursor.branch("guest", { case User.Guest => "" }).map(_ => Reference("unknown"))
+//
+//      (admin or member or guest).lift
+//    }
+//
+//    assertEquals(
+//      obtained = validation.run(User.Admin("taig")),
+//      expected = Validated.valid(Reference("taig@inspector"))
+//    )
+//  }
 }

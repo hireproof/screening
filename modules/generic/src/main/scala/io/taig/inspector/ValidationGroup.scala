@@ -3,12 +3,12 @@ package io.taig.inspector
 import cats.arrow.Arrow
 import cats.data.{NonEmptyList, Validated, ValidatedNel}
 import cats.syntax.all._
-import cats.{Semigroup, Semigroupal, Traverse}
+import cats.{Id, Semigroup, Semigroupal, Traverse}
 
 import scala.collection.immutable.HashMap
 
 sealed abstract class ValidationGroup[I, O] { self =>
-  def run(cursor: Cursor[I]): Validated[ValidationGroup.Errors, O]
+  def run[F[_]](cursor: Cursor[F, I]): Validated[ValidationGroup.Errors, O]
 
   final def run(input: I): Validated[ValidationGroup.Errors, O] = run(Cursor.root(input))
 
@@ -54,8 +54,9 @@ sealed abstract class ValidationGroup[I, O] { self =>
 }
 
 object ValidationGroup {
-  type Error = Either[String, NonEmptyList[Validation.Error]]
-//  final case class Error(history: Selection.History, value: Either[String, NonEmptyList[Validation.Error]]) {
+  final case class Error(history: Selection.History, values: NonEmptyList[Validation.Error]) {
+    def modifyHistory(f: Selection.History => Selection.History): Error = copy(history = f(history))
+  }
 //    def combine(error: Either[String, NonEmptyList[Validation.Error]]): Error = {
 //      val errors = (value, error) match {
 //        case (Right(left), Right(right)) => Right(left concatNel right)
@@ -67,7 +68,10 @@ object ValidationGroup {
 //    }
 //  }
 
-  final class Errors private (head: (Selection.History, Error), tail: HashMap[Selection.History, Error]) {
+  final class Errors private (
+      head: (Selection.History, NonEmptyList[Validation.Error]),
+      tail: HashMap[Selection.History, NonEmptyList[Validation.Error]]
+  ) {
 //    def prepend(selection: Selection): Errors = new Errors(
 //      head.leftMap(selection :: _),
 //      tail.map { case (history, errors) => (selection :: history, errors) }
@@ -78,20 +82,15 @@ object ValidationGroup {
 
       val result = errors.keys.foldLeft(this.toMap) { case (result, history) =>
         result.updatedWith(history) {
-          case Some(Right(x)) =>
-            lookup(history) match {
-              case Right(y)          => Some(Right(x concatNel y))
-              case failure @ Left(_) => Some(failure)
-            }
-          case failure @ Some(Left(_)) => failure
-          case None                    => Some(lookup(history))
+          case Some(x) => Some(x concatNel lookup(history))
+          case None    => Some(lookup(history))
         }
       }
 
       Errors.unsafeFromMap(result)
     }
 
-    def toMap: HashMap[Selection.History, Error] = tail + head
+    def toMap: HashMap[Selection.History, NonEmptyList[Validation.Error]] = tail + head
 
     def keys: Iterable[Selection.History] = toMap.keys
 
@@ -107,24 +106,19 @@ object ValidationGroup {
 
   object Errors {
     def apply(
-        head: (Selection.History, Either[String, NonEmptyList[Validation.Error]]),
-        tail: (Selection.History, Either[String, NonEmptyList[Validation.Error]])*
-    ): ValidationGroup.Errors = new Errors(head, tail.to(HashMap))
-
-    def of(
         head: (Selection.History, NonEmptyList[Validation.Error]),
         tail: (Selection.History, NonEmptyList[Validation.Error])*
-    ): ValidationGroup.Errors = Errors(head.map(_.asRight), tail.map(_.map(_.asRight)): _*)
+    ): ValidationGroup.Errors = new Errors(head, tail.to(HashMap))
 
     def one(history: Selection.History, errors: NonEmptyList[Validation.Error]): Errors =
-      new Errors(history -> errors.asRight, HashMap.empty)
+      new Errors(history -> errors, HashMap.empty)
 
     def root(errors: NonEmptyList[Validation.Error]): Errors = one(Selection.History.Root, errors)
 
-    def fromMap(values: Map[Selection.History, Either[String, NonEmptyList[Validation.Error]]]): Option[Errors] =
+    def fromMap(values: Map[Selection.History, NonEmptyList[Validation.Error]]): Option[Errors] =
       Option.when(values.nonEmpty)(new Errors(values.head, values.tail.to(HashMap)))
 
-    def unsafeFromMap(values: Map[Selection.History, Either[String, NonEmptyList[Validation.Error]]]): Errors =
+    def unsafeFromMap(values: Map[Selection.History, NonEmptyList[Validation.Error]]): Errors =
       fromMap(values).get
 
     def fromErrors(history: Selection.History, error: Validation.Error, errors: Validation.Error*): Errors =
@@ -139,10 +133,10 @@ object ValidationGroup {
 //    override def run(input: Any): Validated[ValidationGroup.Errors, A] = Validated.valid(value)
 //  }
 
-  def apply[I, O](f: Cursor[I] => Validated[ValidationGroup.Errors, O]): ValidationGroup[I, O] =
-    new ValidationGroup[I, O] {
-      override def run(cursor: Cursor[I]): Validated[Errors, O] = f(cursor)
-    }
+//  def apply[I, O](f: Cursor[I] => Validated[ValidationGroup.Errors, O]): ValidationGroup[I, O] =
+//    new ValidationGroup[I, O] {
+//      override def run(cursor: Cursor[I]): Validated[Errors, O] = f(cursor)
+//    }
 
 //  def fromValidation[I, O](validation: Validation[I, O]): ValidationGroup[I, O] = new ValidationGroup[I, O] {
 //    override def run(input: I): Validated[ValidationGroup.Errors, O] = validation.run(input).leftMap(Errors.root)

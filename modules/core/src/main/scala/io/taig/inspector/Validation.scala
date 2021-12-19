@@ -35,25 +35,27 @@ object Validation {
   sealed abstract class Collection[F[_], A] extends Validation[F[A], Unit]
 
   object Collection {
-    final case class AtLeast[F[X] <: Iterable[X], A](reference: Int) extends Collection[F, A] {
-      def error(actual: Int): Validation.Error = Validation.Error.Collection.AtLeast(reference, actual)
+    final case class AtLeast[F[X] <: Iterable[X], A](equal: Boolean, reference: Int) extends Collection[F, A] {
+      def error(actual: Int): Validation.Error = Validation.Error.Collection.AtLeast(equal, reference, actual)
 
       override def errors(input: F[A]): List[Error] = List(error(input.size))
 
       override def run(input: F[A]): ValidatedNel[Error, Unit] = {
         val size = input.size
-        Validated.cond(size >= reference, (), NonEmptyList.one(error(size)))
+        val check = if (equal) size >= reference else size > reference
+        Validated.cond(check, (), NonEmptyList.one(error(size)))
       }
     }
 
-    final case class AtMost[F[X] <: Iterable[X], A](reference: Int) extends Collection[F, A] {
-      def error(actual: Int): Validation.Error = Validation.Error.Collection.AtMost(reference, actual)
+    final case class AtMost[F[X] <: Iterable[X], A](equal: Boolean, reference: Int) extends Collection[F, A] {
+      def error(actual: Int): Validation.Error = Validation.Error.Collection.AtMost(equal, reference, actual)
 
       override def errors(input: F[A]): List[Error] = List(error(input.size))
 
       override def run(input: F[A]): ValidatedNel[Error, Unit] = {
         val size = input.size
-        Validated.cond(size <= reference, (), NonEmptyList.one(error(size)))
+        val check = if (equal) size <= reference else size < reference
+        Validated.cond(check, (), NonEmptyList.one(error(size)))
       }
     }
 
@@ -321,8 +323,8 @@ object Validation {
     object Not {
       def apply(error: Error): Error = error match {
         case Not(error)                                   => error
-        case Collection.AtLeast(reference, actual)        => Collection.AtMost(reference, actual)
-        case Collection.AtMost(reference, actual)         => Collection.AtLeast(reference, actual)
+        case Collection.AtLeast(equal, reference, actual) => Collection.AtMost(!equal, reference, actual)
+        case Collection.AtMost(equal, reference, actual)  => Collection.AtLeast(!equal, reference, actual)
         case Date.After(equal, reference, actual)         => Date.Before(!equal, reference, actual)
         case Date.Before(equal, reference, actual)        => Date.After(!equal, reference, actual)
         case Duration.AtLeast(equal, reference, actual)   => Duration.AtMost(!equal, reference, actual)
@@ -338,8 +340,8 @@ object Validation {
     sealed abstract class Collection extends Error
 
     object Collection {
-      final case class AtLeast(reference: Int, actual: Int) extends Collection
-      final case class AtMost(reference: Int, actual: Int) extends Collection
+      final case class AtLeast(equal: Boolean, reference: Int, actual: Int) extends Collection
+      final case class AtMost(equal: Boolean, reference: Int, actual: Int) extends Collection
       final case class Contains(reference: String, actual: Seq[String]) extends Collection
       final case class Exactly(reference: Int, actual: Int) extends Collection
     }

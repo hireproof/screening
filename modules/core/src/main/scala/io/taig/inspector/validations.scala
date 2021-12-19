@@ -10,24 +10,26 @@ object validations {
   def lift[I, O](f: I => O): Validation[I, O] = Validation.Lift(f)
 
   trait collection {
-    def atLeast[F[X] <: Iterable[X], A](reference: Int): Validation[F[A], Unit] =
-      Validation.Collection.AtLeast(reference)
+    def atLeast[F[X] <: Iterable[X], A](reference: Int, equal: Boolean = true): Validation[F[A], Unit] =
+      Validation.Collection.AtLeast(equal, reference)
 
-    def atMost[F[X] <: Iterable[X], A](reference: Int): Validation[F[A], Unit] = Validation.Collection.AtMost(reference)
+    def atMost[F[X] <: Iterable[X], A](reference: Int, equal: Boolean = true): Validation[F[A], Unit] =
+      Validation.Collection.AtMost(equal, reference)
 
     def contains[A: Eq: Show](reference: A): Validation[Seq[A], Unit] =
       Validation.Collection.Contains(reference)
 
-    val empty: Validation[Iterable[_], Unit] = atMost(reference = 0)
+    def empty[F[a] <: Iterable[a], A]: Validation[Iterable[_], Unit] = atMost(reference = 0)
 
-    val nonEmpty: Validation[Iterable[_], Unit] = Validation.Not(empty)
+    def nonEmpty[F[a] <: Iterable[a], A]: Validation[F[A], Unit] = Validation.Not(empty)
 
-    def exactly(expected: Int): Validation[Iterable[_], Unit] = (atLeast(expected) and atMost(expected)).modifyError {
-      case Validation.Error.Collection.AtLeast(reference, actual) =>
-        Validation.Error.Collection.Exactly(reference, actual)
-      case Validation.Error.Collection.AtMost(reference, actual) =>
-        Validation.Error.Collection.Exactly(reference, actual)
-    }
+    def exactly(expected: Int): Validation[Iterable[_], Unit] =
+      (atLeast(expected, equal = true) and atMost(expected, equal = true)).modifyError {
+        case Validation.Error.Collection.AtLeast(_, reference, actual) =>
+          Validation.Error.Collection.Exactly(reference, actual)
+        case Validation.Error.Collection.AtMost(_, reference, actual) =>
+          Validation.Error.Collection.Exactly(reference, actual)
+      }
   }
 
   object collection extends collection

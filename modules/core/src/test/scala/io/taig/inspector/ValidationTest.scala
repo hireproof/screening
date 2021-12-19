@@ -11,7 +11,7 @@ final class ValidationTest extends FunSuite {
     assert(collection.atLeast(reference = 3).run(List(1, 2, 3)).isValid)
     assertEquals(
       obtained = collection.atLeast(reference = 3).run(List(1)).error,
-      expected = Some(Validation.Error.Collection.AtLeast(reference = 3, actual = 1))
+      expected = Some(Validation.Error.Collection.AtLeast(equal = true, reference = 3, actual = 1))
     )
   }
 
@@ -20,7 +20,7 @@ final class ValidationTest extends FunSuite {
     assert(collection.atMost(reference = 3).run(List(1, 2, 3)).isValid)
     assertEquals(
       obtained = collection.atMost(reference = 1).run(List(1, 2, 3)).error,
-      expected = Some(Validation.Error.Collection.AtMost(reference = 1, actual = 3))
+      expected = Some(Validation.Error.Collection.AtMost(equal = true, reference = 1, actual = 3))
     )
   }
 
@@ -28,7 +28,7 @@ final class ValidationTest extends FunSuite {
     assert(collection.empty.run(Nil).isValid)
     assertEquals(
       obtained = collection.empty.run(List(1, 2, 3)).error,
-      expected = Some(Validation.Error.Collection.AtMost(reference = 0, actual = 3))
+      expected = Some(Validation.Error.Collection.AtMost(equal = true, reference = 0, actual = 3))
     )
   }
 
@@ -36,7 +36,7 @@ final class ValidationTest extends FunSuite {
     assert(collection.nonEmpty.run(List(1, 2, 3)).isValid)
     assertEquals(
       obtained = collection.nonEmpty.run(Nil).error,
-      expected = Some(Validation.Error.Not(Validation.Error.Collection.AtMost(reference = 0, actual = 0)))
+      expected = Some(Validation.Error.Not(Validation.Error.Collection.AtMost(equal = true, reference = 0, actual = 0)))
     )
   }
 
