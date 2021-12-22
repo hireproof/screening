@@ -113,8 +113,10 @@ trait circe {
   implicit val decoderInspectorValidationError: Decoder[Validation.Error] = Decoder.instance { cursor =>
     (cursor.get[String](Keys.Variant), cursor.get[Option[String]](Keys.Type)).tupled.flatMap {
       // format: off
-      case (Types.Collection, Some(Variants.AtLeast)) => decoder.reference[Int, Int](cursor).map(Validation.Error.Collection.AtLeast.tupled)
-      case (Types.Collection, Some(Variants.AtMost)) => decoder.reference[Int, Int](cursor).map(Validation.Error.Collection.AtMost.tupled)
+      case (Types.Collection, Some(Variants.AtLeast)) => decoder.reference[Int, Int](cursor).map { case (reference, actual) => Validation.Error.Collection.AtLeast(equal = false, reference, actual) }
+      case (Types.Collection, Some(Variants.AtLeastEqual)) => decoder.reference[Int, Int](cursor).map { case (reference, actual) => Validation.Error.Collection.AtLeast(equal = true, reference, actual) }
+      case (Types.Collection, Some(Variants.AtMost)) => decoder.reference[Int, Int](cursor).map { case (reference, actual) => Validation.Error.Collection.AtMost(equal = false, reference, actual) }
+      case (Types.Collection, Some(Variants.AtMostEqual)) => decoder.reference[Int, Int](cursor).map { case (reference, actual) => Validation.Error.Collection.AtMost(equal = true, reference, actual) }
       case (Types.Collection, Some(Variants.Contains)) => decoder.reference[String, Seq[String]](cursor).map(Validation.Error.Collection.Contains.tupled)
       case (Types.Collection, Some(Variants.Exactly)) => decoder.reference[Int, Int](cursor).map(Validation.Error.Collection.Exactly.tupled)
       case (Types.Conflict, None) => decoder[String](cursor).map(Validation.Error.Conflict.apply)
@@ -150,8 +152,10 @@ trait circe {
 
   implicit val encoderInspectorValidationError: Encoder.AsObject[Validation.Error] = Encoder.AsObject.instance {
     // format: off
-    case Validation.Error.Collection.AtLeast(reference, actual) => encoder.reference(Types.Collection, Variants.AtLeast, reference, actual)
-    case Validation.Error.Collection.AtMost(reference, actual) => encoder.reference(Types.Collection, Variants.AtMost, reference, actual)
+    case Validation.Error.Collection.AtLeast(false, reference, actual) => encoder.reference(Types.Collection, Variants.AtLeast, reference, actual)
+    case Validation.Error.Collection.AtLeast(true, reference, actual) => encoder.reference(Types.Collection, Variants.AtLeastEqual, reference, actual)
+    case Validation.Error.Collection.AtMost(false, reference, actual) => encoder.reference(Types.Collection, Variants.AtMost, reference, actual)
+    case Validation.Error.Collection.AtMost(true, reference, actual) => encoder.reference(Types.Collection, Variants.AtMostEqual, reference, actual)
     case Validation.Error.Collection.Contains(reference, actual) => encoder.reference(Types.Collection, Variants.Contains, reference, actual)
     case Validation.Error.Collection.Exactly(reference, actual) => encoder.reference(Types.Collection, Variants.Exactly, reference, actual)
     case Validation.Error.Conflict(actual) => encoder(Types.Conflict, actual)
@@ -198,14 +202,6 @@ trait circe {
 
   implicit val keyDecoderInspectorSelectionHistory: KeyDecoder[Selection.History] =
     KeyDecoder.instance(Selection.History.parse(_).toOption)
-
-  implicit val decoderInspectorValidationGroupErrors: Decoder[ValidationGroup.Errors] =
-    Decoder[Map[Selection.History, NonEmptyList[Validation.Error]]].emap { errors =>
-      Either.cond(errors.nonEmpty, ValidationGroup.Errors.unsafeFromMap(errors), "NonEmptyMap")
-    }
-
-  implicit val encoderInspectorValidationGroupErrors: Encoder[ValidationGroup.Errors] =
-    Encoder[Map[Selection.History, NonEmptyList[Validation.Error]]].contramap(_.toMap)
 }
 
 object circe extends circe {
