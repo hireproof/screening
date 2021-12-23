@@ -27,8 +27,6 @@ sealed abstract class Validation[-I, O] {
   final def withErrors(errors: NonEmptyList[Validation.Error]): Validation[I, O] = modifyErrors(_ => errors)
 
   final def withError(error: Validation.Error): Validation[I, O] = withErrors(NonEmptyList.one(error))
-
-  final def or[II <: I](validation: Validation[II, O]): Validation[II, O] = Validation.Or(this.validation, validation)
 }
 
 object Validation {
@@ -309,10 +307,12 @@ object Validation {
 
   implicit final class Ops[I, O](val validation: Validation[I, O]) extends AnyVal {
     def tap: Validation[I, I] = validation.first[I].dimap((i: I) => (i, i))(_._2)
+
+    def or(right: Validation[I, O]): Validation[I, O] = Validation.Or(validation, right)
   }
 
   implicit final class UnitOps[I](val validation: Validation[I, Unit]) extends AnyVal {
-    def and(validation: Validation[I, Unit]): Validation[I, Unit] = Validation.And(this.validation, validation)
+    def and(right: Validation[I, Unit]): Validation[I, Unit] = Validation.And(validation, right)
   }
 
   sealed abstract class Error extends Product with Serializable

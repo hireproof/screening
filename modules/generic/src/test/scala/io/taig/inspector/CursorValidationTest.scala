@@ -1,5 +1,6 @@
 package io.taig.inspector
 
+import cats.Id
 import cats.data.NonEmptyList
 import cats.syntax.all._
 import io.taig.inspector.validations._
@@ -45,7 +46,7 @@ final class CursorValidationTest extends FunSuite {
 
     assertEquals(
       obtained = validation.run(User(age = 12, User.Address(""))),
-      expected = Cursor.Errors(
+      expected = Cursor.Failure(
         ("age" :: Selection.History.Root) ->
           NonEmptyList.one(Validation.Error.Number.GreaterThan(equal = true, reference = 18, actual = 12)),
         ("city" :: "address" :: Selection.History.Root) ->
@@ -77,7 +78,7 @@ final class CursorValidationTest extends FunSuite {
 
     assertEquals(
       obtained = validation.run(User(Some(""))),
-      expected = Cursor.Errors.one(
+      expected = Cursor.Failure.one(
         "name" :: Selection.History.Root,
         NonEmptyList.one(Validation.Error.Text.AtLeast(equal = false, reference = 0, actual = 0))
       )
@@ -103,7 +104,7 @@ final class CursorValidationTest extends FunSuite {
 
     assertEquals(
       obtained = validation.run(Users(Nil)),
-      expected = Cursor.Errors.one(
+      expected = Cursor.Failure.one(
         "names" :: Selection.History.Root,
         NonEmptyList.one(Validation.Error.Collection.AtLeast(equal = true, 1, 0))
       )
@@ -111,7 +112,7 @@ final class CursorValidationTest extends FunSuite {
 
     assertEquals(
       obtained = validation.run(Users(List("", "foo", ""))),
-      expected = Cursor.Errors(
+      expected = Cursor.Failure(
         (0 :: "names" :: Selection.History.Root) -> NonEmptyList.one(
           Validation.Error.Text.AtLeast(equal = false, 0, 0)
         ),
@@ -146,23 +147,17 @@ final class CursorValidationTest extends FunSuite {
       val validation: Validation[String, Reference] = text.email.tap.map(apply)
     }
 
-//    val validation: CursorValidation[User, Reference] = CursorValidation { cursor =>
-//      cursor.branch {
-//        case User.Admin(name) => "admin" -> ???
-//        case user: User.Member => "member" -> User.Member.validation.ru
-//      }
-//      val admin = cursor.branch("admin", { case User.Admin(name) => s"$name@inspector" }).andThen(Reference.validation)
-//      val member = cursor.branch("member", { case User.Member(email) => email }).andThen(Reference.validation)
-//      val guest = cursor.branch("guest", { case User.Guest => "" }).map(_ => Reference("unknown"))
-//
-//      (admin or member or guest).lift
-//
-//      ???
-//    }
+    val validation: CursorValidation[User, Reference] = CursorValidation { cursor =>
+      cursor.oneOf[Id, Reference] {
+        case User.Admin(name) => "admin" -> Cursor.Result.fromValidatedNel(Reference.validation.run(s"$name@inspector"))
+        case user: User.Member => "member" -> User.Member.validation.run(user).map(_._1)
+        case User.Guest => "guest" -> Cursor.Success.root(Reference("unknown"))
+      }.run(???)
+    }
 
-//    assertEquals(
-//      obtained = validation.run(User.Admin("taig")),
-//      expected = Validated.valid(Reference("taig@inspector"))
-//    )
+    assertEquals(
+      obtained = validation.run(User.Admin("taig")),
+      expected = Cursor.Success.root(Reference("taig@inspector"))
+    )
   }
 }
