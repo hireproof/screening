@@ -1,6 +1,5 @@
 package io.taig.inspector
 
-import cats.Id
 import cats.data.NonEmptyList
 import cats.syntax.all._
 import io.taig.inspector.validations._
@@ -123,7 +122,7 @@ final class CursorValidationTest extends FunSuite {
     )
   }
 
-  test("branch") {
+  test("oneOf") {
     sealed abstract class User extends Product with Serializable
 
     object User {
@@ -148,7 +147,7 @@ final class CursorValidationTest extends FunSuite {
     }
 
     val validation: CursorValidation[User, Reference] = CursorValidation { cursor =>
-      cursor.oneOf {
+      cursor.oneOfRun {
         case User.Admin(name) => "admin" -> Cursor.Result.fromValidatedNel(Reference.validation.run(s"$name@inspector"))
         case user: User.Member => "member" -> User.Member.validation.run(user).map(_._1)
         case User.Guest        => "guest" -> Cursor.Success.root(Reference("unknown"))

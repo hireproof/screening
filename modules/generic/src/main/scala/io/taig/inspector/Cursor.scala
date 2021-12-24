@@ -12,55 +12,50 @@ abstract class Cursor[F[_], A] { self =>
   final def run[B](validation: Validation[A, B])(implicit F: Traverse[F]): Cursor.Result[Id, F[B]] =
     andThen(validation).get.toId
 
-  final def map[B](f: A => B)(implicit F: Functor[F]): Cursor[F, B] = new Cursor[F, B] {
-    override def get: Cursor.Result[F, B] = self.get.map(f)
-  }
+  final def map[B](f: A => B)(implicit F: Functor[F]): Cursor[F, B] =
+    Cursor(self.get.map(f))
 
-  final def field[B](name: String, select: A => B)(implicit F: Functor[F]): Cursor[F, B] = new Cursor[F, B] {
-    override def get: Cursor.Result[F, B] = self.get.map(select).modifyHistory(name :: _)
-  }
+  final def field[B](name: String, select: A => B)(implicit F: Functor[F]): Cursor[F, B] =
+    Cursor(self.get.map(select).modifyHistory(name :: _))
 
-  final def oneOf[G[_]: Applicative, B](
+  final def oneOf[G[_], B](
       validate: A => (String, Cursor.Result[G, B])
-  )(implicit F: Traverse[F]): Cursor.Result[Id, F[B]] = ???
-//    new Cursor[G, F[B]] {
-//      override def get: Cursor.Result[G, F[B]] = self.get.andThen { a =>
-//        val (name, result) = validate(a)
-//        result.modifyHistory(name :: _)
-//      }
-//    }
+  )(implicit F: Traverse[F], G: Applicative[G]): Cursor[G, F[B]] = Cursor {
+    self.get.andThen { a =>
+      val (name, result) = validate(a)
+      result.modifyHistory(name :: _)
+    }
+  }
+
+  final def oneOfRun[G[_], B](
+      validate: A => (String, Cursor.Result[G, B])
+  )(implicit F: Traverse[F], G: Applicative[G]): Cursor.Result[Id, G[F[B]]] =
+    oneOf(validate).get.toId
 
   final def option[B](implicit ev: A =:= Option[B], F: Functor[F]): Cursor[λ[a => F[Option[a]]], B] =
-    new Cursor[λ[a => F[Option[a]]], B] {
-      override def get: Cursor.Result[λ[a => F[Option[a]]], B] =
-        self.get.map(ev.apply).mapValue[F, Option, Option[B], B] { case Cursor.Value(history, value) =>
-          value.map(Cursor.Value(history, _))
-        }
+    Cursor {
+      self.get.map(ev.apply).mapValue[F, Option, Option[B], B] { case Cursor.Value(history, value) =>
+        value.map(Cursor.Value(history, _))
+      }
     }
 
   final def option[B](name: String, select: A => Option[B])(implicit F: Functor[F]): Cursor[λ[a => F[Option[a]]], B] =
-    new Cursor[λ[a => F[Option[a]]], B] {
-      override def get: Cursor.Result[λ[a => F[Option[a]]], B] = self.field(name, select).option.get
-    }
+    Cursor(self.field(name, select).option.get)
 
   final def collection[G[_], B](implicit ev: A =:= G[B], F: Functor[F], G: Traverse[G]): Cursor[λ[a => F[G[a]]], B] =
-    new Cursor[λ[a => F[G[a]]], B] {
-      override def get: Cursor.Result[λ[a => F[G[a]]], B] =
-        self.get.map(ev.apply).mapValue[F, G, G[B], B] { case Cursor.Value(history, value) =>
-          value.zipWithIndex.map { case (b, index) => Cursor.Value(index :: history, b) }
-        }
+    Cursor {
+      self.get.map(ev.apply).mapValue[F, G, G[B], B] { case Cursor.Value(history, value) =>
+        value.zipWithIndex.map { case (b, index) => Cursor.Value(index :: history, b) }
+      }
     }
 
   final def collection[G[_], B](name: String, select: A => G[B])(implicit
       F: Functor[F],
       G: Traverse[G]
-  ): Cursor[λ[a => F[G[a]]], B] = new Cursor[λ[a => F[G[a]]], B] {
-    override def get: Cursor.Result[λ[a => F[G[a]]], B] = self.field(name, select).collection.get
-  }
+  ): Cursor[λ[a => F[G[a]]], B] = Cursor(self.field(name, select).collection.get)
 
-  final def andThen[B](validation: Validation[A, B])(implicit F: Traverse[F]): Cursor[F, B] = new Cursor[F, B] {
-    override def get: Cursor.Result[F, B] = self.get.andThen(validation)
-  }
+  final def andThen[B](validation: Validation[A, B])(implicit F: Traverse[F]): Cursor[F, B] =
+    Cursor(self.get.andThen(validation))
 
   // TODO PartialSuccess
   final def ensure(validation: Validation[A, Unit])(implicit F: Traverse[F]): Cursor[F, A] = andThen(validation.tap)
@@ -221,6 +216,10 @@ object Cursor {
     implicit val semigroup: Semigroup[Cursor.Failure] = new Semigroup[Cursor.Failure] {
       override def combine(x: Failure, y: Failure): Failure = x merge y
     }
+  }
+
+  def apply[F[_], A](result: => Cursor.Result[F, A]): Cursor[F, A] = new Cursor[F, A] {
+    override def get: Result[F, A] = result
   }
 
   def root[A](value: A): Cursor[Id, A] = new Cursor[Id, A] {
