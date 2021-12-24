@@ -1,5 +1,6 @@
 package io.taig.inspector
 
+import cats.Order
 import cats.syntax.all._
 
 import java.util.regex.Pattern
@@ -62,5 +63,16 @@ object Selection {
           case exception: IllegalArgumentException => exception.getMessage.asLeft
         }
       }
+
+    implicit val order: Order[Selection.History] = Order.by(_.values)
+  }
+
+  implicit val order: Order[Selection] = new Order[Selection] {
+    override def compare(x: Selection, y: Selection): Int = (x, y) match {
+      case (Field(x), Field(y)) => x compare y
+      case (Index(x), Index(y)) => x compare y
+      case (Field(_), Index(y)) => 1
+      case (Index(_), Field(_)) => -1
+    }
   }
 }

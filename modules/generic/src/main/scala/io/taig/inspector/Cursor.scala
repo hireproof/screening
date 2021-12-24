@@ -1,10 +1,10 @@
 package io.taig.inspector
 
-import cats.data.{NonEmptyList, Validated, ValidatedNel}
+import cats.data.{NonEmptyList, NonEmptyMap, Validated, ValidatedNel}
 import cats.implicits._
 import cats.{Applicative, Functor, Id, Semigroup, Traverse}
 
-import scala.collection.immutable.HashMap
+import scala.collection.immutable.SortedMap
 
 abstract class Cursor[F[_], A] { self =>
   def get: Cursor.Result[F, A]
@@ -20,13 +20,15 @@ abstract class Cursor[F[_], A] { self =>
     override def get: Cursor.Result[F, B] = self.get.map(select).modifyHistory(name :: _)
   }
 
-  final def oneOf[G[_]: Applicative, B](validate: A => (String, Cursor.Result[G, B]))(implicit F: Traverse[F]): Cursor[G, F[B]] =
-    new Cursor[G, F[B]] {
-      override def get: Cursor.Result[G, F[B]] = self.get.andThen { a =>
-        val (name, result) = validate(a)
-        result.modifyHistory(name :: _)
-      }
-    }
+  final def oneOf[G[_]: Applicative, B](
+      validate: A => (String, Cursor.Result[G, B])
+  )(implicit F: Traverse[F]): Cursor.Result[Id, F[B]] = ???
+//    new Cursor[G, F[B]] {
+//      override def get: Cursor.Result[G, F[B]] = self.get.andThen { a =>
+//        val (name, result) = validate(a)
+//        result.modifyHistory(name :: _)
+//      }
+//    }
 
   final def option[B](implicit ev: A =:= Option[B], F: Functor[F]): Cursor[λ[a => F[Option[a]]], B] =
     new Cursor[λ[a => F[Option[a]]], B] {
@@ -71,7 +73,7 @@ object Cursor {
     def map[B](f: A => B): Value[B] = copy(value = f(value))
   }
 
-  sealed abstract class Result[+F[_], +A] {
+  sealed abstract class Result[+F[_], +A] extends Product with Serializable {
     final def modifyHistory[FF[a] >: F[a]](
         f: Selection.History => Selection.History
     )(implicit F: Functor[FF]): Result[FF, A] = this match {
@@ -184,14 +186,11 @@ object Cursor {
 
   final case class PartialSuccess[F[_], A](failure: Cursor.Failure, value: F[Cursor.Value[A]]) extends Result[F, A]
 
-  final class Failure(
-      head: (Selection.History, NonEmptyList[Validation.Error]),
-      tail: HashMap[Selection.History, NonEmptyList[Validation.Error]]
-  ) extends Result[Nothing, Nothing] {
-    def modifyHistory(f: Selection.History => Selection.History): Cursor.Failure =
-      Failure.unsafeFromMap(toMap.map { case (history, errors) => (f(history), errors) })
+  final case class Failure(toNem: NonEmptyMap[Selection.History, NonEmptyList[Validation.Error]])
+      extends Result[Nothing, Nothing] {
+    def modifyHistory(f: Selection.History => Selection.History): Cursor.Failure = Failure(toNem.mapKeys(f))
 
-    def merge(failure: Failure): Cursor.Failure = Failure.unsafeFromMap {
+    def merge(failure: Failure): Failure = Failure.unsafeFromMap {
       failure.toMap.foldLeft(toMap) { case (result, (history, errors)) =>
         result.updatedWith(history) {
           case Some(current) => Some(current concatNel errors)
@@ -200,32 +199,24 @@ object Cursor {
       }
     }
 
-    def toMap: HashMap[Selection.History, NonEmptyList[Validation.Error]] = tail + head
-
-    override def hashCode(): Int = toMap.hashCode()
-
-    override def equals(obj: Any): Boolean = obj match {
-      case failure: Failure => toMap equals failure.toMap
-      case _                => false
-    }
-
-    override def toString: String = s"Cursor.Failure($toMap)"
+    def toMap: SortedMap[Selection.History, NonEmptyList[Validation.Error]] = toNem.toSortedMap
   }
 
   object Failure {
     def fromMap(values: Map[Selection.History, NonEmptyList[Validation.Error]]): Option[Cursor.Failure] =
-      Option.when(values.nonEmpty)(new Failure(values.head, values.tail.to(HashMap)))
+      NonEmptyMap.fromMap(SortedMap.from(values)).map(apply)
 
     def unsafeFromMap(values: Map[Selection.History, NonEmptyList[Validation.Error]]): Cursor.Failure =
-      fromMap(values).get
-
-    def apply(
-        head: (Selection.History, NonEmptyList[Validation.Error]),
-        tail: (Selection.History, NonEmptyList[Validation.Error])*
-    ): Cursor.Failure = unsafeFromMap(tail.toMap + head)
+      Failure(NonEmptyMap.fromMapUnsafe(SortedMap.from(values)))
 
     def one(history: Selection.History, errors: NonEmptyList[Validation.Error]): Cursor.Failure =
-      Failure(history -> errors)
+      Failure(NonEmptyMap.one(history, errors))
+
+    def of(
+        head: (Selection.History, NonEmptyList[Validation.Error]),
+        tail: (Selection.History, NonEmptyList[Validation.Error])*
+    ): Cursor.Failure =
+      Failure(NonEmptyMap(head, SortedMap.from(tail)))
 
     implicit val semigroup: Semigroup[Cursor.Failure] = new Semigroup[Cursor.Failure] {
       override def combine(x: Failure, y: Failure): Failure = x merge y

@@ -46,7 +46,7 @@ final class CursorValidationTest extends FunSuite {
 
     assertEquals(
       obtained = validation.run(User(age = 12, User.Address(""))),
-      expected = Cursor.Failure(
+      expected = Cursor.Failure.of(
         ("age" :: Selection.History.Root) ->
           NonEmptyList.one(Validation.Error.Number.GreaterThan(equal = true, reference = 18, actual = 12)),
         ("city" :: "address" :: Selection.History.Root) ->
@@ -112,7 +112,7 @@ final class CursorValidationTest extends FunSuite {
 
     assertEquals(
       obtained = validation.run(Users(List("", "foo", ""))),
-      expected = Cursor.Failure(
+      expected = Cursor.Failure.of(
         (0 :: "names" :: Selection.History.Root) -> NonEmptyList.one(
           Validation.Error.Text.AtLeast(equal = false, 0, 0)
         ),
@@ -148,11 +148,11 @@ final class CursorValidationTest extends FunSuite {
     }
 
     val validation: CursorValidation[User, Reference] = CursorValidation { cursor =>
-      cursor.oneOf[Id, Reference] {
+      cursor.oneOf {
         case User.Admin(name) => "admin" -> Cursor.Result.fromValidatedNel(Reference.validation.run(s"$name@inspector"))
         case user: User.Member => "member" -> User.Member.validation.run(user).map(_._1)
-        case User.Guest => "guest" -> Cursor.Success.root(Reference("unknown"))
-      }.run(???)
+        case User.Guest        => "guest" -> Cursor.Success.root(Reference("unknown"))
+      }
     }
 
     assertEquals(
