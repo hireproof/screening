@@ -401,7 +401,7 @@ object Validation {
     sealed abstract class Optional extends Error
 
     object Optional {
-      final case object Required extends Error
+      case object Required extends Error
     }
 
     sealed abstract class Number extends Error

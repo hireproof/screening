@@ -132,7 +132,7 @@ final class CursorValidationTest extends FunSuite {
         }
       }
 
-      final case object Guest extends User
+      case object Guest extends User
     }
 
     final case class Reference(value: String)
