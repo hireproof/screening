@@ -393,6 +393,8 @@ object Validation {
     final case class Unknown(actual: String) extends Error
   }
 
+  def ask[A]: Validation[A, A] = Lift(identity)
+
   def valid[A](value: A): Validation[Any, A] = Lift(_ => value)
 
   def invalid[A](errors: NonEmptyList[Validation.Error]): Validation[Any, Nothing] = Invalid(errors)
