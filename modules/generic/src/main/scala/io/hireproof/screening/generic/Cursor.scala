@@ -53,6 +53,16 @@ abstract class Cursor[F[_], A](implicit F: Traverse[F]) { self =>
     }
   }
 
+  final def unnamedOneOf[B](f: A => Validated[Cursor.Errors, B]): Cursor[F, B] = Cursor {
+    get match {
+      case Cursor.Result.Success(value) =>
+        F.traverse(value) { case Cursor.Value(history, a) =>
+          f(a).leftMap(_.modifyHistory(history ++ _)).map(Cursor.Value(history, _))
+        }.fold(Cursor.Result.Failure.apply, Cursor.Result.Success[F, B])
+      case result: Cursor.Result.Failure => result
+    }
+  }
+
   final def field[B](name: String, select: A => B): Cursor[F, B] = Cursor(get.map(select).modifyHistory(_ / name))
 
   final def option[B](implicit ev: A =:= Option[B]): Cursor[λ[a => F[Option[a]]], B] =
