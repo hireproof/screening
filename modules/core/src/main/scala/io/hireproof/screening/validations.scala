@@ -62,7 +62,11 @@ object validations {
 
   object duration extends duration
 
-  def mapping[I, O](f: PartialFunction[I, O], references: Option[Set[I]] = None, render: I => String = (i: I) => i.toString): Validation[I, O] =
+  def mapping[I, O](
+      f: PartialFunction[I, O],
+      references: Option[Set[I]] = None,
+      render: I => String = (i: I) => i.toString
+  ): Validation[I, O] =
     Validation.Mapping(f.lift, references, render)
 
   trait number {

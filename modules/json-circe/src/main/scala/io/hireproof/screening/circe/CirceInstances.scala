@@ -32,6 +32,7 @@ trait CirceInstances {
     val Not = "not"
     val Number = "number"
     val Parsing = "parsing"
+    val Required = "requires"
     val Text = "text"
     val Unknown = "unknown"
   }
@@ -141,6 +142,7 @@ trait CirceInstances {
       case (Types.Number, Some(Variants.LessThan)) => decoder.reference[Double, Double](cursor).map { case (reference, actual) => Validation.Error.Number.LessThan(equal = false, reference, actual) }
       case (Types.Number, Some(Variants.LessThanEqual)) => decoder.reference[Double, Double](cursor).map { case (reference, actual) => Validation.Error.Number.LessThan(equal = true, reference, actual) }
       case (Types.Parsing, Some(variant)) => (parsingValueFromString(variant).toRight(DecodingFailure("Invalid parsing variant", cursor.history)), decoder[String](cursor)).mapN(Validation.Error.Parsing.apply)
+      case (Types.Required, None) => Validation.Error.Optional.Required.asRight
       case (Types.Text, Some(Variants.AtLeast)) => decoder.reference[Int, Int](cursor).map { case (reference, actual) => Validation.Error.Text.AtLeast(equal = false, reference, actual) }
       case (Types.Text, Some(Variants.AtLeastEqual)) => decoder.reference[Int, Int](cursor).map { case (reference, actual) => Validation.Error.Text.AtLeast(equal = true, reference, actual) }
       case (Types.Text, Some(Variants.AtMost)) => decoder.reference[Int, Int](cursor).map { case (reference, actual) => Validation.Error.Text.AtMost(equal = false, reference, actual) }
@@ -180,6 +182,7 @@ trait CirceInstances {
     case Validation.Error.Number.GreaterThan(true, reference, actual) => encoder.reference(Types.Number, Variants.GreaterThanEqual, reference, actual)
     case Validation.Error.Number.LessThan(false, reference, actual) => encoder.reference(Types.Number, Variants.LessThan, reference, actual)
     case Validation.Error.Number.LessThan(true, reference, actual) => encoder.reference(Types.Number, Variants.LessThanEqual, reference, actual)
+    case Validation.Error.Optional.Required => JsonObject(Keys.Type := Types.Required)
     case Validation.Error.Parsing(reference, actual) => encoder.variant(Types.Parsing, parsingValueToString(reference), actual)
     case Validation.Error.Text.AtLeast(false, reference, actual) => encoder.reference(Types.Text, Variants.AtLeast, reference, actual)
     case Validation.Error.Text.AtLeast(true, reference, actual) => encoder.reference(Types.Text, Variants.AtLeastEqual, reference, actual)

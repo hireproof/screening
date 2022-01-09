@@ -16,7 +16,11 @@ sealed abstract class Validation[-I, +O] {
 
   def errors(input: I): List[Validation.Error]
 
+  final def map[T](f: O => T): Validation[I, T] = Validation.arrow.rmap(this)(f)
+
   final def andThen[T](validation: Validation[O, T]): Validation[I, T] = Validation.AndThen(this, validation)
+
+  final def collect[T](f: PartialFunction[O, T]): Validation[I, T] = map(f.lift).required
 
   final def modifyErrors(f: NonEmptyList[Validation.Error] => NonEmptyList[Validation.Error]): Validation[I, O] =
     Validation.Modify(this, f)
@@ -249,6 +253,17 @@ object Validation {
     def error(input: I): Error = Error.Mapping(references.map(_.map(render)), render(input))
   }
 
+  object Optional {
+    final case class Required[I, O](validation: Validation[I, Option[O]]) extends Validation[I, O] {
+      override def run(input: I): ValidatedNel[Error, O] = validation.run(input).andThen {
+        case Some(value) => Validated.valid(value)
+        case None        => Validated.invalidNel(Error.Optional.Required)
+      }
+
+      override def errors(input: I): List[Error] = List(Error.Optional.Required)
+    }
+  }
+
   final case class AndThen[I, X, O](left: Validation[I, X], right: Validation[X, O]) extends Validation[I, O] {
     override def errors(input: I): List[Validation.Error] = left.run(input) match {
       case Validated.Valid(x)        => left.errors(input) ++ right.errors(x)
@@ -321,6 +336,9 @@ object Validation {
   }
 
   implicit final class Ops[I, O](val validation: Validation[I, O]) extends AnyVal {
+    final def required[T](implicit ev: O =:= Option[T]): Validation[I, T] =
+      Validation.Optional.Required(validation.map(ev.apply))
+
     def tap: Validation[I, I] = validation.first[I].dimap((i: I) => (i, i))(_._2)
 
     def or(right: Validation[I, O]): Validation[I, O] = Validation.Or(validation, right)
@@ -379,6 +397,12 @@ object Validation {
     }
 
     final case class Mapping(references: Option[Set[String]], actual: String) extends Error
+
+    sealed abstract class Optional extends Error
+
+    object Optional {
+      final case object Required extends Error
+    }
 
     sealed abstract class Number extends Error
 
