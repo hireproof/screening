@@ -10,12 +10,17 @@
 
 *Screening*, like any other validation library, provides composing building blocks that give you fine-grained control over your data checks. However, these features set it apart from other solutions in the ecosystem:
 
-### 🪆**Nested data structures**  
+### 🪆**Nested data structures**
+
 Schemas that need to be validated are often represented as case class & enum data structures (e.g. to derive JSON codecs). *Screening* offers a cursor DSL that allows to navigate and validate these structures in a type-safe manner while keeping track of the underlying structure to generate meaningful errors.
-### ⚠️ **Structured errors**  
+
+### ⚠️ **Structured errors** 
+
 Errors are modeled as data classes that contain all necessary information about the validation (usually the expected and actual values). These errors can be serialized and returned to the client. If you prefer to work with plain `String`s, you can convert them to your liking.
-### 🕵️‍♀️ **Introspection**  
-*Screening* limits itself to applicative composition of a set of predefined rules. This is a high price in terms of expressiveness, but brings the benefit of introspection, allowing to infer the constraints that any defined validation rule imposes. These insights can be used to feed them into generated documentations or API schemas.
+
+### 🕵️‍♀️ **Introspection** 
+
+*Screening* limits itself to applicative composition of a set of predefined rules. This is a high price in terms of expressiveness, but brings the benefit of introspection, enabling to infer the exact constraints imposed by a validation rule. These insights can be used to feed generated documentations or API schemas.
 
 ## Installation
 
