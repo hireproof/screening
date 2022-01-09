@@ -240,6 +240,15 @@ object Validation {
     }
   }
 
+  final case class Mapping[I, O](f: I => Option[O], references: Option[Set[I]], render: I => String)
+      extends Validation[I, O] {
+    override def run(input: I): ValidatedNel[Error, O] = Validated.fromOption(f(input), NonEmptyList.one(error(input)))
+
+    override def errors(input: I): List[Error] = List(error(input))
+
+    def error(input: I): Error = Error.Mapping(references.map(_.map(render)), render(input))
+  }
+
   final case class AndThen[I, X, O](left: Validation[I, X], right: Validation[X, O]) extends Validation[I, O] {
     override def errors(input: I): List[Validation.Error] = left.run(input) match {
       case Validated.Valid(x)        => left.errors(input) ++ right.errors(x)
@@ -368,6 +377,8 @@ object Validation {
       final case class AtMost(equal: Boolean, reference: FiniteDuration, actual: FiniteDuration) extends Duration
       final case class Exactly(reference: FiniteDuration, actual: FiniteDuration) extends Duration
     }
+
+    final case class Mapping(references: Option[Set[String]], actual: String) extends Error
 
     sealed abstract class Number extends Error
 

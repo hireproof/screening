@@ -28,6 +28,7 @@ trait CirceInstances {
     val Conflict = "conflict"
     val Date = "date"
     val Duration = "duration"
+    val Mapping = "mapping"
     val Not = "not"
     val Number = "number"
     val Parsing = "parsing"
@@ -132,6 +133,7 @@ trait CirceInstances {
       case (Types.Duration, Some(Variants.AtLeast)) => decoder.reference[FiniteDuration, FiniteDuration](cursor).map { case (reference, actual) => Validation.Error.Duration.AtLeast(equal = false, reference, actual) }
       case (Types.Duration, Some(Variants.AtLeastEqual)) => decoder.reference[FiniteDuration, FiniteDuration](cursor).map { case (reference, actual) => Validation.Error.Duration.AtLeast(equal = true, reference, actual) }
       case (Types.Duration, Some(Variants.Exactly)) => decoder.reference[FiniteDuration, FiniteDuration](cursor).map { case (reference, actual) => Validation.Error.Duration.Exactly(reference, actual) }
+      case (Types.Mapping, None) => (cursor.get[Option[Set[String]]](Keys.Reference), cursor.get[String](Keys.Actual)).mapN(Validation.Error.Mapping.apply)
       case (Types.Not, None) => cursor.get[Validation.Error](Keys.Error)
       case (Types.Number, Some(Variants.Equal)) => decoder.reference[Double, Double](cursor).map { case (reference, actual) => Validation.Error.Number.Equal(reference, actual) }
       case (Types.Number, Some(Variants.GreaterThan)) => decoder.reference[Double, Double](cursor).map { case (reference, actual) => Validation.Error.Number.GreaterThan(equal = false, reference, actual) }
@@ -171,6 +173,7 @@ trait CirceInstances {
     case Validation.Error.Duration.AtMost(false, reference, actual) => encoder.reference(Types.Duration, Variants.AtMost, reference, actual)
     case Validation.Error.Duration.AtMost(true, reference, actual) => encoder.reference(Types.Duration, Variants.AtMostEqual, reference, actual)
     case Validation.Error.Duration.Exactly(reference, actual) => encoder.reference(Types.Duration, Variants.Exactly, reference, actual)
+    case Validation.Error.Mapping(references, actual) => JsonObject(Keys.Type := Types.Mapping, Keys.Reference := references, Keys.Actual := actual)
     case Validation.Error.Not(error) => JsonObject(Keys.Type := Types.Not, Keys.Error := error.asJsonObject)
     case Validation.Error.Number.Equal(reference, actual) => encoder.reference(Types.Number, Variants.Equal, reference, actual)
     case Validation.Error.Number.GreaterThan(false, reference, actual) => encoder.reference(Types.Number, Variants.GreaterThan, reference, actual)
