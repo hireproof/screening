@@ -1,6 +1,7 @@
 package io.hireproof.screening.generic
 
 import cats.Order
+import cats.data.Chain
 import cats.syntax.all._
 
 import java.util.regex.Pattern
@@ -11,26 +12,29 @@ object Selection {
   final case class Field(name: String) extends Selection
   final case class Index(value: Int) extends Selection
 
-  final case class History(private val values: List[Selection]) extends AnyVal {
-    def /(field: String): History = History(Field(field) :: values)
+  final case class History(private val values: Chain[Selection]) extends AnyVal {
+    def /(field: String): History = /(Field(field))
 
-    def /(index: Int): History = History(Index(index) :: values)
+    def /(index: Int): History = /(Index(index))
 
-    def /(selection: Selection): History = History(selection :: values)
+    def /(selection: Selection): History = History(values append selection)
 
-    def ++(history: History): History = History(history.values ++ values)
+    def ++(history: History): History = History(values ++ history.values)
 
     def isRoot: Boolean = values.isEmpty
 
-    def up: Selection.History = if (isRoot) History.Root else History(values.tail)
+    def up: Selection.History = values.initLast match {
+      case Some((init, _)) => History(init)
+      case None            => History.Root
+    }
 
-    def toList: List[Selection] = values.reverse
+    def toList: List[Selection] = values.toList
 
     def toJsonPath: String = if (values.isEmpty) "."
     else
       values.foldLeft("") {
-        case (result, Selection.Field(name))  => s".$name$result"
-        case (result, Selection.Index(index)) => s"[$index]$result"
+        case (result, Selection.Field(name))  => s"$result.$name"
+        case (result, Selection.Index(index)) => s"$result[$index]"
       }
 
     override def toString: String = toJsonPath
@@ -39,7 +43,7 @@ object Selection {
   object History {
     private val Parser = Pattern.compile("(?:\\.(\\w+))|\\[(\\d+)\\]")
 
-    val Root: Selection.History = History(Nil)
+    val Root: Selection.History = History(Chain.empty)
 
     def parse(value: String): Either[String, Selection.History] =
       if (value.isEmpty) Left("Empty")
@@ -63,7 +67,7 @@ object Selection {
 
           if (lastOffset < value.length) throw new IllegalArgumentException("Contains invalid characters")
 
-          History(result.result().reverse).asRight
+          History(Chain.fromSeq(result.result())).asRight
         } catch {
           case _: NumberFormatException            => "Invalid index format".asLeft
           case exception: IllegalArgumentException => exception.getMessage.asLeft
