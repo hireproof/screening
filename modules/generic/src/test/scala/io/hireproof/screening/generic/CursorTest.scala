@@ -52,7 +52,7 @@ final class CursorTest extends FunSuite {
 
     object Baz {
       val validation: CursorValidation[Baz, Foo] = CursorValidation[Baz, Foo] { cursor =>
-        cursor.field("bar", _.bar).andThen(Bar.validation).run
+        cursor.field("bar", _.bar).thenValidate(Bar.validation).run
       }
     }
 
@@ -78,7 +78,7 @@ final class CursorTest extends FunSuite {
 
     object Baz {
       val validation: CursorValidation[Baz, Foo] = CursorValidation[Baz, Foo] { cursor =>
-        cursor.field("bar", _.bar).andThen(Bar.validation).run
+        cursor.field("bar", _.bar).thenValidate(Bar.validation).run
       }
     }
 
@@ -160,7 +160,7 @@ final class CursorTest extends FunSuite {
     val obtained = Cursor
       .root(Foo(values))
       .field("bars", _.bars)
-      .andThen(CursorValidation(_.collection.runWith(lift(Name.apply))))
+      .thenValidate(CursorValidation(_.collection.runWith(lift(Name.apply))))
       .ensure(collection.atMost[List, Name](3))
       .get
 
@@ -179,7 +179,7 @@ final class CursorTest extends FunSuite {
     val obtained = Cursor
       .root(Foo(values))
       .field("bars", _.bars)
-      .andThen(CursorValidation(_.collection.runWith(text.required.map(Name.apply))))
+      .thenValidate(CursorValidation(_.collection.runWith(text.required.map(Name.apply))))
       .ensure(collection.atMost[List, Name](3))
       .get
 
@@ -198,7 +198,7 @@ final class CursorTest extends FunSuite {
     val obtained = Cursor
       .root(Foo(values))
       .field("bars", _.bars)
-      .andThen(CursorValidation(_.collection.runWith(text.required.map(Name.apply))))
+      .thenValidate(CursorValidation(_.collection.runWith(text.required.map(Name.apply))))
       .ensure(collection.atMost[List, Name](1))
       .get
 

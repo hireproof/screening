@@ -28,20 +28,6 @@ abstract class Cursor[F[_], A](implicit F: Traverse[F]) { self =>
 
   final def root: Cursor[Id, F[A]] = Cursor(run)
 
-  final def andThen[B](validation: CursorValidation[A, B]): Cursor[F, B] = Cursor {
-    get match {
-      case Cursor.Result.Success(value) =>
-        F.traverse(value) { case Cursor.Value(history, a) =>
-          validation.get(Cursor.root(a)).modifyHistory(history ++ _)
-        } match {
-          case Cursor.Result.Success(value: Cursor.Value[F[B]]) =>
-            Cursor.Result.Success(value.value.map(Cursor.Value(value.history, _)))
-          case result: Cursor.Result.Failure => result
-        }
-      case result: Cursor.Result.Failure => result
-    }
-  }
-
   final def andThen[B](f: A => Cursor.Result[Id, B]): Cursor[F, B] = Cursor {
     get match {
       case Cursor.Result.Success(value) =>
@@ -102,7 +88,21 @@ abstract class Cursor[F[_], A](implicit F: Traverse[F]) { self =>
       get.mapValue[G, B] { case Cursor.Value(history, value) => ev.apply(value).map(Cursor.Value(history, _)) }
     }(F.compose(G))
 
-  final def validate[B](validation: Validation[A, B])(implicit F: Traverse[F]): Cursor[F, B] = Cursor[F, B] {
+  final def thenValidate[B](validation: CursorValidation[A, B]): Cursor[F, B] = Cursor {
+    get match {
+      case Cursor.Result.Success(value) =>
+        F.traverse(value) { case Cursor.Value(history, a) =>
+          validation.get(Cursor.root(a)).modifyHistory(history ++ _)
+        } match {
+          case Cursor.Result.Success(value: Cursor.Value[F[B]]) =>
+            Cursor.Result.Success(value.value.map(Cursor.Value(value.history, _)))
+          case result: Cursor.Result.Failure => result
+        }
+      case result: Cursor.Result.Failure => result
+    }
+  }
+
+  final def validate[B](validation: Validation[A, B])(implicit F: Traverse[F]): Cursor[F, B] = Cursor {
     get match {
       case Cursor.Result.Success(value) =>
         F.traverse(value) { case Cursor.Value(history, a) =>
