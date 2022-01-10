@@ -62,38 +62,36 @@ object validations {
 
   object duration extends duration
 
-  def mapping[I, O](
-      f: PartialFunction[I, O],
-      references: Option[Set[I]] = None,
-      render: I => String = (i: I) => i.toString
-  ): Validation[I, O] =
-    Validation.Mapping(f.lift, references, render)
+  trait mapping {
+    def apply[I, O](
+        f: I => Option[O],
+        references: Option[Set[I]] = None,
+        render: I => String = (i: I) => i.toString
+    ): Validation[I, O] = Validation.Mapping(f, references, render)
+
+    def partial[I, O](
+        pf: PartialFunction[I, O],
+        references: Option[Set[I]] = None,
+        render: I => String = (i: I) => i.toString
+    ): Validation[I, O] = Validation.Mapping(pf.lift, references, render)
+  }
+
+  object mapping extends mapping
 
   trait number {
-    def equal[I: Numeric](expected: I, delta: I): Validation[I, Unit] = Validation.Number(
-      Validation.Number.Operator.Equal,
-      expected,
-      delta
-    )
+    def equal[I: Numeric](expected: I, delta: I): Validation[I, Unit] =
+      Validation.Number(Validation.Number.Operator.Equal, expected, delta)
 
     def equal[I](expected: I)(implicit numeric: Numeric[I]): Validation[I, Unit] =
       equal(expected, delta = numeric.zero)
 
     def greaterThan[I](reference: I, equal: Boolean = false)(implicit numeric: Numeric[I]): Validation[I, Unit] =
-      Validation.Number(
-        Validation.Number.Operator.GreaterThan(equal),
-        reference,
-        numeric.zero
-      )
+      Validation.Number(Validation.Number.Operator.GreaterThan(equal), reference, numeric.zero)
 
     def greaterThanEqual[I: Numeric](reference: I): Validation[I, Unit] = greaterThan(reference, equal = true)
 
     def lessThan[I](reference: I, equal: Boolean = false)(implicit numeric: Numeric[I]): Validation[I, Unit] =
-      Validation.Number(
-        Validation.Number.Operator.LessThan(equal),
-        reference,
-        numeric.zero
-      )
+      Validation.Number(Validation.Number.Operator.LessThan(equal), reference, numeric.zero)
 
     def lessThanEqual[I: Numeric](reference: I): Validation[I, Unit] = lessThan(reference, equal = true)
   }
