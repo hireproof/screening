@@ -13,11 +13,21 @@ object Selection {
   final case class Index(value: Int) extends Selection
 
   final case class History(private val values: Chain[Selection]) extends AnyVal {
-    def /(field: String): History = /(Field(field))
+    def /(field: String): History = append(Field(field))
 
-    def /(index: Int): History = /(Index(index))
+    def /(index: Int): History = append(Index(index))
 
-    def /(selection: Selection): History = History(values append selection)
+    def /(selection: Selection): History = append(selection)
+
+    def append(selection: Selection): History = History(values append selection)
+
+    def /:(field: String): History = prepend(Field(field))
+
+    def /:(index: Int): History = prepend(Index(index))
+
+    def /:(selection: Selection): History = prepend(selection)
+
+    def prepend(selection: Selection): History = History(values prepend selection)
 
     def ++(history: History): History = History(values ++ history.values)
 

@@ -30,6 +30,11 @@ final class SelectionHistoryTest extends FunSuite {
     assertEquals(obtained = history.up, expected = __ / "baz" / 3 / "bar")
   }
 
+  test("/:") {
+    val history = __ / "foo" / "bar"
+    assertEquals(obtained = "baz" /: history, expected = __ / "baz" / "foo" / "bar")
+  }
+
   test("parse") {
     assertEquals(
       obtained = Selection.History.parse(".foo.bar[3].baz"),
