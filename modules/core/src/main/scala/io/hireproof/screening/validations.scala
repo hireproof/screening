@@ -9,7 +9,7 @@ import scala.util.matching.Regex
 object validations {
   def lift[I, O](f: I => O): Validation[I, O] = Validation.Lift(f)
 
-  trait collection {
+  object collection {
     def atLeast[F[X] <: Iterable[X], A](reference: Int, equal: Boolean = true): Validation[F[A], Unit] =
       Validation.Collection.AtLeast(equal, reference)
 
@@ -32,9 +32,7 @@ object validations {
       }
   }
 
-  object collection extends collection
-
-  trait date {
+  object date {
     def after(reference: Instant, equal: Boolean = true): Validation[Instant, Unit] =
       Validation.Date.After(equal, reference)
 
@@ -42,9 +40,7 @@ object validations {
       Validation.Date.Before(equal, reference)
   }
 
-  object date extends date
-
-  trait duration {
+  object duration {
     def atLeast(reference: FiniteDuration, equal: Boolean = true): Validation[FiniteDuration, Unit] =
       Validation.Duration.AtLeast(equal, reference)
 
@@ -60,9 +56,7 @@ object validations {
       }
   }
 
-  object duration extends duration
-
-  trait mapping {
+  object mapping {
     def apply[I, O](
         f: I => Option[O],
         references: Option[Set[I]] = None,
@@ -76,9 +70,7 @@ object validations {
     ): Validation[I, O] = Validation.Mapping(pf.lift, references, render)
   }
 
-  object mapping extends mapping
-
-  trait number {
+  object number {
     def equal[I: Numeric](expected: I, delta: I): Validation[I, Unit] =
       Validation.Number(Validation.Number.Operator.Equal, expected, delta)
 
@@ -96,9 +88,7 @@ object validations {
     def lessThanEqual[I: Numeric](reference: I): Validation[I, Unit] = lessThan(reference, equal = true)
   }
 
-  object number extends number
-
-  trait parsing {
+  object parsing {
     val bigDecimal: Validation[String, BigDecimal] = Validation.Parsing.BigDecimal
 
     val bigInt: Validation[String, BigInt] = Validation.Parsing.BigInt
@@ -114,9 +104,7 @@ object validations {
     val short: Validation[String, Short] = Validation.Parsing.Short
   }
 
-  object parsing extends parsing
-
-  trait text {
+  object text {
     val length: Validation[String, Int] = lift(_.length)
 
     val trim: Validation[String, String] = lift(_.trim)
@@ -146,6 +134,4 @@ object validations {
 
     val required: Validation[String, String] = trim.andThen(nonEmpty.tap)
   }
-
-  object text extends text
 }
