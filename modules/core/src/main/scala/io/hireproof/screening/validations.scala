@@ -86,12 +86,16 @@ object validations {
         numeric.zero
       )
 
+    def greaterThanEqual[I: Numeric](reference: I): Validation[I, Unit] = greaterThan(reference, equal = true)
+
     def lessThan[I](reference: I, equal: Boolean = false)(implicit numeric: Numeric[I]): Validation[I, Unit] =
       Validation.Number(
         Validation.Number.Operator.LessThan(equal),
         reference,
         numeric.zero
       )
+
+    def lessThanEqual[I: Numeric](reference: I): Validation[I, Unit] = lessThan(reference, equal = true)
   }
 
   object number extends number
