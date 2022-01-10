@@ -42,6 +42,18 @@ abstract class Cursor[F[_], A](implicit F: Traverse[F]) { self =>
     }
   }
 
+  final def andThen[B](f: A => Cursor.Result[Id, B]): Cursor[F, B] = Cursor {
+    get match {
+      case Cursor.Result.Success(value) =>
+        F.traverse(value) { case Cursor.Value(history, a) => f(a).modifyHistory(history ++ _) } match {
+          case Cursor.Result.Success(value: Cursor.Value[F[B]]) =>
+            Cursor.Result.Success(value.value.map(Cursor.Value(value.history, _)))
+          case result: Cursor.Result.Failure => result
+        }
+      case result: Cursor.Result.Failure => result
+    }
+  }
+
   final def oneOf[B](f: A => (String, Validated[Cursor.Errors, B])): Cursor[F, B] = Cursor {
     get match {
       case Cursor.Result.Success(value) =>
