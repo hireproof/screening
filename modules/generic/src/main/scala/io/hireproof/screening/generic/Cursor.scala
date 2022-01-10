@@ -1,7 +1,7 @@
 package io.hireproof.screening.generic
 
 import cats._
-import cats.data.{NonEmptyList, NonEmptyMap, Validated}
+import cats.data.{NonEmptyList, NonEmptyMap, Validated, ValidatedNel}
 import cats.syntax.all._
 import io.hireproof.screening.Validation
 
@@ -207,7 +207,10 @@ object Cursor {
     def root[F[_]: Applicative: Traverse, A](value: A): Cursor.Result[F, A] =
       Success(Value(Selection.History.Root, value).pure[F])
 
-    def id[A](value: A): Cursor.Result[Id, A] = Success[Id, A](Value(Selection.History.Root, value))
+    def id[A](value: A): Cursor.Result[Id, A] = Success.id(Value(Selection.History.Root, value))
+
+    def fromValidatedNel[A](result: ValidatedNel[Validation.Error, A]): Cursor.Result[Id, A] =
+      result.fold(errors => Failure(Errors.root(errors)), Result.id)
 
     implicit def applicative[F[_]: Applicative: Traverse]: Applicative[Result[F, *]] = new Applicative[Result[F, *]] {
       override def pure[A](x: A): Result[F, A] = Result.root[F, A](x)
