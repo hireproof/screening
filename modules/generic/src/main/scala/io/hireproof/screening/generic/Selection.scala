@@ -12,14 +12,14 @@ object Selection {
   final case class Field(name: String) extends Selection
   final case class Index(value: Int) extends Selection
 
-  final case class History(private val values: Chain[Selection]) extends AnyVal {
+  final case class History(toChain: Chain[Selection]) extends AnyVal {
     def /(field: String): History = append(Field(field))
 
     def /(index: Int): History = append(Index(index))
 
     def /(selection: Selection): History = append(selection)
 
-    def append(selection: Selection): History = History(values append selection)
+    def append(selection: Selection): History = History(toChain append selection)
 
     def /:(field: String): History = prepend(Field(field))
 
@@ -27,22 +27,22 @@ object Selection {
 
     def /:(selection: Selection): History = prepend(selection)
 
-    def prepend(selection: Selection): History = History(values prepend selection)
+    def prepend(selection: Selection): History = History(toChain prepend selection)
 
-    def ++(history: History): History = History(values ++ history.values)
+    def ++(history: History): History = History(toChain ++ history.toChain)
 
-    def isRoot: Boolean = values.isEmpty
+    def isRoot: Boolean = toChain.isEmpty
 
-    def up: Selection.History = values.initLast match {
+    def up: Selection.History = toChain.initLast match {
       case Some((init, _)) => History(init)
       case None            => History.Root
     }
 
-    def toList: List[Selection] = values.toList
+    def toList: List[Selection] = toChain.toList
 
-    def toJsonPath: String = if (values.isEmpty) "."
+    def toJsonPath: String = if (toChain.isEmpty) "."
     else
-      values.foldLeft("") {
+      toChain.foldLeft("") {
         case (result, Selection.Field(name))  => s"$result.$name"
         case (result, Selection.Index(index)) => s"$result[$index]"
       }
@@ -84,7 +84,7 @@ object Selection {
         }
       }
 
-    implicit val order: Order[Selection.History] = Order.by(_.values)
+    implicit val order: Order[Selection.History] = Order.by(_.toChain)
   }
 
   implicit val order: Order[Selection] = new Order[Selection] {
