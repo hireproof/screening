@@ -13,9 +13,8 @@ final class CursorTest extends FunSuite {
     val obtained = Cursor
       .withHistory(__ / "foo" / "bar", "")
       .modifyHistory(__ / "prefix" ++ _)
-      .get
 
-    val expected = Cursor.Result.Success.id(Cursor.Value(__ / "prefix" / "foo" / "bar", ""))
+    val expected = Cursor.withHistory(__ / "prefix" / "foo" / "bar", "")
 
     assertEquals(obtained, expected)
   }
@@ -25,81 +24,47 @@ final class CursorTest extends FunSuite {
       .withHistory(__ / "foo" / "bar", "")
       .validate(Validation.invalidNel(Validation.Error.Unknown("x")))
       .modifyHistory(_ / "suffix")
-      .run
 
-    val expected =
-      Cursor.Result.Failure(Cursor.Errors.oneNel(__ / "foo" / "bar" / "suffix", Validation.Error.Unknown("x")))
+    val expected = Cursor.Failure(Cursor.Errors.oneNel(__ / "foo" / "bar" / "suffix", Validation.Error.Unknown("x")))
 
     assertEquals(obtained, expected)
   }
 
   test("andThen: success") {
-    case class Foo(value: String)
+    case class Bar(value: String)
 
-    object Foo {
-      val validation: Validation[String, Foo] = text.required.map(apply)
+    case class Foo(bar: Option[Bar])
+
+    val obtained = Cursor.root(Foo(Some(Bar("foobar")))).option("bar", _.bar).flatMap { bar =>
+      Cursor.root(bar).field("value", _.value).validate(text.required)
     }
 
-    case class Bar(foo: String)
+    val expected = Cursor.Success[Option, String](Some(Cursor.Value(__ / "bar" / "value", "foobar")))
 
-    object Bar {
-      val validation: CursorValidation[Bar, Foo] = CursorValidation { cursor =>
-        cursor.field("foo", _.foo).runWith(Foo.validation)
-      }
-    }
-
-    case class Baz(bar: Bar)
-
-    object Baz {
-      val validation: CursorValidation[Baz, Foo] = CursorValidation[Baz, Foo] { cursor =>
-        cursor.field("bar", _.bar).thenValidate(Bar.validation).run
-      }
-    }
-
-    assertEquals(obtained = Baz.validation.run(Baz(Bar("foo"))), expected = Validated.valid(Foo("foo")))
+    assertEquals(obtained, expected)
   }
 
   test("andThen: failure") {
-    case class Foo(value: String)
+    case class Bar(value: String)
 
-    object Foo {
-      val validation: Validation[String, Foo] = text.required.map(apply)
+    case class Foo(bar: Option[Bar])
+
+    val obtained = Cursor.root(Foo(Some(Bar("")))).option("bar", _.bar).flatMap { bar =>
+      Cursor.root(bar).field("value", _.value).validate(text.required)
     }
 
-    case class Bar(foo: String)
+    val expected = Cursor.Failure(Cursor.Errors.oneNel(__ / "bar" / "value", requiredError))
 
-    object Bar {
-      val validation: CursorValidation[Bar, Foo] = CursorValidation { cursor =>
-        cursor.field("foo", _.foo).runWith(Foo.validation)
-      }
-    }
-
-    case class Baz(bar: Bar)
-
-    object Baz {
-      val validation: CursorValidation[Baz, Foo] = CursorValidation[Baz, Foo] { cursor =>
-        cursor.field("bar", _.bar).thenValidate(Bar.validation).run
-      }
-    }
-
-    assertEquals(
-      obtained = Baz.validation.run(Baz(Bar(""))),
-      expected = Validated.invalid(
-        Cursor.Errors.oneNel(
-          __ / "bar" / "foo",
-          Validation.Error.Text.AtLeast(equal = false, reference = 0, actual = 0)
-        )
-      )
-    )
+    assertEquals(obtained, expected)
   }
 
   test("field: success") {
     case class Foo(bar: String)
     case class Bar(foo: Foo)
 
-    val obtained = Cursor.root(Bar(Foo(""))).field("foo", _.foo).field("bar", _.bar).get
+    val obtained = Cursor.root(Bar(Foo(""))).field("foo", _.foo).field("bar", _.bar)
 
-    val expected = Cursor.Result.Success.id(Cursor.Value(__ / "foo" / "bar", ""))
+    val expected = Cursor.withHistory(__ / "foo" / "bar", "")
 
     assertEquals(obtained, expected)
   }
@@ -113,9 +78,8 @@ final class CursorTest extends FunSuite {
       .field("foo", _.foo)
       .field("bar", _.bar)
       .validate(text.required)
-      .get
 
-    val expected = Cursor.Result.Failure(Cursor.Errors.oneNel(__ / "foo" / "bar", requiredError))
+    val expected = Cursor.Failure(Cursor.Errors.oneNel(__ / "foo" / "bar", requiredError))
 
     assertEquals(obtained, expected)
   }
@@ -125,9 +89,9 @@ final class CursorTest extends FunSuite {
 
     val values = List("foo", "bar", "baz")
 
-    val obtained = Cursor.root(Foo(values)).collection("bars", _.bars).get
+    val obtained = Cursor.root(Foo(values)).collection("bars", _.bars)
 
-    val expected = Cursor.Result
+    val expected = Cursor
       .Success(values.mapWithIndex((value, index) => Cursor.Value(__ / index, value)))
       .modifyHistory(__ / "bars" ++ _)
 
@@ -141,9 +105,8 @@ final class CursorTest extends FunSuite {
       .root(Foo(List("", "bar", "", "baz")))
       .collection("bars", _.bars)
       .validate(text.required)
-      .get
 
-    val expected = Cursor.Result.Failure(
+    val expected = Cursor.Failure(
       Cursor.Errors.ofError(__ / 0 -> requiredError, __ / 2 -> requiredError).modifyHistory(__ / "bars" ++ _)
     )
 
@@ -160,11 +123,10 @@ final class CursorTest extends FunSuite {
     val obtained = Cursor
       .root(Foo(values))
       .field("bars", _.bars)
-      .thenValidate(CursorValidation(_.collection.runWith(lift(Name.apply))))
+      .andThen(_.collection.runWith(lift(Name.apply)))
       .ensure(collection.atMost[List, Name](3))
-      .get
 
-    val expected = Cursor.Result.Success.id(Cursor.Value(__ / "bars", values.map(Name.apply)))
+    val expected = Cursor.withHistory(__ / "bars", values.map(Name.apply))
 
     assertEquals(obtained, expected)
   }
@@ -179,11 +141,10 @@ final class CursorTest extends FunSuite {
     val obtained = Cursor
       .root(Foo(values))
       .field("bars", _.bars)
-      .thenValidate(CursorValidation(_.collection.runWith(text.required.map(Name.apply))))
+      .andThen(_.collection.runWith(text.required.map(Name.apply)))
       .ensure(collection.atMost[List, Name](3))
-      .get
 
-    val expected = Cursor.Result.Failure(Cursor.Errors.oneNel(__ / "bars" / 1, requiredError))
+    val expected = Cursor.Failure(Cursor.Errors.oneNel(__ / "bars" / 1, requiredError))
 
     assertEquals(obtained, expected)
   }
@@ -198,11 +159,10 @@ final class CursorTest extends FunSuite {
     val obtained = Cursor
       .root(Foo(values))
       .field("bars", _.bars)
-      .thenValidate(CursorValidation(_.collection.runWith(text.required.map(Name.apply))))
+      .andThen(_.collection.runWith(text.required.map(Name.apply)))
       .ensure(collection.atMost[List, Name](1))
-      .get
 
-    val expected = Cursor.Result.Failure(
+    val expected = Cursor.Failure(
       Cursor.Errors.oneNel(
         __ / "bars",
         Validation.Error.Collection.AtMost(equal = true, reference = 1, actual = values.length)
@@ -220,9 +180,8 @@ final class CursorTest extends FunSuite {
       .root(Bar(Some(Foo(""))))
       .option("foo", _.foo)
       .field("bar", _.bar)
-      .get
 
-    val expected = Cursor.Result.Success[Option, String](Some(Cursor.Value(__ / "foo" / "bar", "")))
+    val expected = Cursor.Success[Option, String](Some(Cursor.Value(__ / "foo" / "bar", "")))
 
     assertEquals(obtained, expected)
   }
@@ -236,9 +195,8 @@ final class CursorTest extends FunSuite {
       .option("foo", _.foo)
       .field("bar", _.bar)
       .validate(text.required)
-      .get
 
-    val expected = Cursor.Result.Failure(Cursor.Errors.oneNel(__ / "foo" / "bar", requiredError))
+    val expected = Cursor.Failure(Cursor.Errors.oneNel(__ / "foo" / "bar", requiredError))
 
     assertEquals(obtained, expected)
   }
@@ -260,9 +218,8 @@ final class CursorTest extends FunSuite {
         case Animal.Cat(_) => "cat" -> Validated.valid("foo")
         case Animal.Dog(_) => "dog" -> Validated.valid("bar")
       }
-      .get
 
-    val expected = Cursor.Result.Success.id(Cursor.Value(__ / "animal" / "dog", "bar"))
+    val expected = Cursor.withHistory(__ / "animal" / "dog", "bar")
 
     assertEquals(obtained, expected)
   }
@@ -284,9 +241,8 @@ final class CursorTest extends FunSuite {
         case Animal.Cat(name) => "cat" -> text.required.run(name).leftMap(Cursor.Errors.root)
         case Animal.Dog(_)    => "dog" -> Validated.valid("bar")
       }
-      .get
 
-    val expected = Cursor.Result.Failure(Cursor.Errors.oneNel(__ / "animal" / "cat", requiredError))
+    val expected = Cursor.Failure(Cursor.Errors.oneNel(__ / "animal" / "cat", requiredError))
 
     assertEquals(obtained, expected)
   }

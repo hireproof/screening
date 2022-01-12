@@ -7,118 +7,68 @@ import io.hireproof.screening.Validation
 
 import scala.collection.immutable.SortedMap
 
-abstract class Cursor[F[_], A](implicit F: Traverse[F]) { self =>
-  def get: Cursor.Result[F, A]
+sealed abstract class Cursor[+F[+_], +A] { self =>
+  def modifyHistory(f: Selection.History => Selection.History): Cursor[F, A]
 
-  final def modifyHistory(f: Selection.History => Selection.History): Cursor[F, A] = Cursor(get.modifyHistory(f))
+  def run: Validated[Cursor.Errors, F[A]]
 
-  final def run: Cursor.Result[Id, F[A]] = get match {
-    case Cursor.Result.Success(value) =>
-      F.traverse(value) { case Cursor.Value(_, a) =>
-        Cursor.Result.Success[Id, A](Cursor.Value(Selection.History.Root, a)): Cursor.Result[Id, A]
-      }
-    case result: Cursor.Result.Failure => result
-  }
+  final def runWith[T](validation: Validation[A, T]): Validated[Cursor.Errors, F[T]] = validate(validation).run
 
-  final def runWith[B](validation: Validation[A, B]): Cursor.Result[Id, F[B]] = validate(validation).run
+  def map[T](f: A => T): Cursor[F, T]
 
-  final def runOneOf[B](f: A => (String, Validated[Cursor.Errors, B])): Cursor.Result[Id, F[B]] = oneOf(f).run
+  def flatMap[T](f: A => Cursor[Identity, T]): Cursor[F, T]
 
-  final def map[B](f: A => B): Cursor[F, B] = Cursor(get.map(f))
+  def andThen[T](validation: CursorValidation[A, T]): Cursor[F, T]
 
-  final def root: Cursor[Id, F[A]] = Cursor(run)
+  final def andThen[T](f: Cursor.Root[A] => Validated[Cursor.Errors, T]): Cursor[F, T] = andThen(CursorValidation(f))
 
-  final def andThen[B](f: A => Cursor.Result[Id, B]): Cursor[F, B] = Cursor {
-    get match {
-      case Cursor.Result.Success(value) =>
-        F.traverse(value) { case Cursor.Value(history, a) => f(a).modifyHistory(history ++ _) } match {
-          case Cursor.Result.Success(value: Cursor.Value[F[B]]) =>
-            Cursor.Result.Success(value.value.map(Cursor.Value(value.history, _)))
-          case result: Cursor.Result.Failure => result
-        }
-      case result: Cursor.Result.Failure => result
-    }
-  }
+  def validate[T](validation: Validation[A, T]): Cursor[F, T]
 
-  final def oneOf[B](f: A => (String, Validated[Cursor.Errors, B])): Cursor[F, B] = Cursor {
-    get match {
-      case Cursor.Result.Success(value) =>
-        F.traverse(value) { case Cursor.Value(history, a) =>
-          val (name, result) = f(a)
-          result.leftMap(_.modifyHistory(history / name ++ _)).map(Cursor.Value(history / name, _))
-        }.fold(Cursor.Result.Failure.apply, Cursor.Result.Success[F, B])
-      case result: Cursor.Result.Failure => result
-    }
-  }
+  final def ensure[T](validation: Validation[A, Unit]): Cursor[F, A] = validate(validation.tap)
 
-  final def unnamedOneOf[B](f: A => Validated[Cursor.Errors, B]): Cursor[F, B] = Cursor {
-    get match {
-      case Cursor.Result.Success(value) =>
-        F.traverse(value) { case Cursor.Value(history, a) =>
-          f(a).leftMap(_.modifyHistory(history ++ _)).map(Cursor.Value(history, _))
-        }.fold(Cursor.Result.Failure.apply, Cursor.Result.Success[F, B])
-      case result: Cursor.Result.Failure => result
-    }
-  }
+  def oneOf[T](f: A => (String, Validated[Cursor.Errors, T])): Cursor[F, T]
 
-  final def field[B](name: String, select: A => B): Cursor[F, B] = Cursor(get.map(select).modifyHistory(_ / name))
+  def unnamedOneOf[T](f: A => Validated[Cursor.Errors, T]): Cursor[F, T]
 
-  final def option[B](implicit ev: A =:= Option[B]): Cursor[λ[a => F[Option[a]]], B] =
-    Cursor[λ[a => F[Option[a]]], B] {
-      get.mapValue[Option, B] { case Cursor.Value(history, value) =>
-        ev.apply(value).map(Cursor.Value(history, _))
-      }
-    }(F.compose[Option])
-
-  final def option[B](name: String, select: A => Option[B]): Cursor[λ[a => F[Option[a]]], B] =
-    field(name, select).option
-
-  final def collection[G[_], B](implicit ev: A =:= G[B], G: Traverse[G]): Cursor[λ[a => F[G[a]]], B] =
-    Cursor[λ[a => F[G[a]]], B] {
-      get.mapValue[G, B] { case Cursor.Value(history, value) =>
-        ev.apply(value).mapWithIndex((b, index) => Cursor.Value(history / index, b))
-      }
-    }(F.compose(G))
-
-  final def collection[G[_]: Traverse, B](name: String, select: A => G[B]): Cursor[λ[a => F[G[a]]], B] =
-    field(name, select).collection
-
-  final def unindexedCollection[G[_], B](implicit ev: A =:= G[B], G: Traverse[G]): Cursor[λ[a => F[G[a]]], B] =
-    Cursor[λ[a => F[G[a]]], B] {
-      get.mapValue[G, B] { case Cursor.Value(history, value) => ev.apply(value).map(Cursor.Value(history, _)) }
-    }(F.compose(G))
-
-  final def thenValidate[B](validation: CursorValidation[A, B]): Cursor[F, B] = Cursor {
-    get match {
-      case Cursor.Result.Success(value) =>
-        F.traverse(value) { case Cursor.Value(history, a) =>
-          validation.get(Cursor.root(a)).modifyHistory(history ++ _)
-        } match {
-          case Cursor.Result.Success(value: Cursor.Value[F[B]]) =>
-            Cursor.Result.Success(value.value.map(Cursor.Value(value.history, _)))
-          case result: Cursor.Result.Failure => result
-        }
-      case result: Cursor.Result.Failure => result
-    }
-  }
-
-  final def validate[B](validation: Validation[A, B])(implicit F: Traverse[F]): Cursor[F, B] = Cursor {
-    get match {
-      case Cursor.Result.Success(value) =>
-        F.traverse(value) { case Cursor.Value(history, a) =>
-          validation
-            .run(a)
-            .leftMap(Cursor.Errors.one(history, _))
-            .map(b => Cursor.Value(history, b))
-        }.fold(Cursor.Result.Failure.apply, Cursor.Result.Success[F, B])
-      case result: Cursor.Result.Failure => result
-    }
-  }
-
-  final def ensure[B](validation: Validation[A, Unit])(implicit F: Traverse[F]): Cursor[F, A] = validate(validation.tap)
+  def field[T](name: String, select: A => T): Cursor[F, T]
 }
 
 object Cursor {
+  type Root[+A] = Cursor[Identity, A]
+
+  implicit final class Ops[F[+_], A](cursor: Cursor[F, A])(implicit F: Traverse[F]) {
+    def option[T](implicit ev: A <:< Option[T]): Cursor[λ[`+a` => F[Option[a]]], T] = cursor match {
+      case Success(value) =>
+        Success[λ[`+a` => F[Option[a]]], T](F.map(value) { case Cursor.Value(history, o) =>
+          ev.apply(o).map(Cursor.Value(history, _))
+        })(F.compose[Option])
+      case cursor: Failure => cursor
+    }
+
+    def option[T](name: String, select: A => Option[T]): Cursor[λ[`+a` => F[Option[a]]], T] =
+      cursor.field(name, select).option
+
+    def collection[G[+_], T](implicit ev: A =:= G[T], G: Traverse[G]): Cursor[λ[`+a` => F[G[a]]], T] = cursor match {
+      case Success(value) =>
+        Success[λ[`+a` => F[G[a]]], T](F.map(value) { case Cursor.Value(history, o) =>
+          ev.apply(o).mapWithIndex((b, index) => Cursor.Value(history / index, b))
+        })(F.compose(G))
+      case cursor: Failure => cursor
+    }
+
+    def collection[G[+_]: Traverse, T](name: String, select: A => G[T]): Cursor[λ[`+a` => F[G[a]]], T] =
+      cursor.field(name, select).collection
+
+    def unindexedCollection[G[+_], T](implicit ev: A =:= G[T], G: Traverse[G]): Cursor[λ[`+a` => F[G[a]]], T] =
+      cursor match {
+        case Success(value) =>
+          Success[λ[`+a` => F[G[a]]], T](F.map(value) { case Cursor.Value(history, o) =>
+            ev.apply(o).map(Cursor.Value(history, _))
+          })(F.compose(G))
+        case cursor: Failure => cursor
+      }
+  }
+
   final case class Value[+A](history: Selection.History, value: A) {
     def modifyHistory(f: Selection.History => Selection.History): Cursor.Value[A] = copy(history = f(history))
 
@@ -169,53 +119,99 @@ object Cursor {
     }
   }
 
-  sealed abstract class Result[+F[_], +A] extends Product with Serializable {
-    def mapValue[G[_]: Traverse, B](f: Cursor.Value[A] => G[Cursor.Value[B]]): Result[λ[a => F[G[a]]], B]
+  final case class Success[F[+_], A](value: F[Cursor.Value[A]])(implicit F: Traverse[F]) extends Cursor[F, A] {
+    override def modifyHistory(f: Selection.History => Selection.History): Cursor[F, A] =
+      Success[F, A](value.map(_.modifyHistory(f)))
 
-    def modifyHistory(f: Selection.History => Selection.History): Cursor.Result[F, A]
+    override def run: Validated[Errors, F[A]] =
+      F.traverse[Validated[Errors, *], Value[A], A](value) { case Cursor.Value(_, o) => Validated.valid(o) }
 
-    final def map[B](f: A => B): Result[F, B] = mapValue[Id, B](_.map(f))
+    override def map[T](f: A => T): Cursor[F, T] = Success(value.map(_.map(f)))
 
-    def toValidated[AA >: A]: Validated[Cursor.Errors, F[AA]]
+    override def flatMap[T](f: A => Cursor[Identity, T]): Cursor[F, T] =
+      F.traverse(value) { case Cursor.Value(history, o) => f(o).modifyHistory(history ++ _) } match {
+        case Success(value: Cursor.Value[F[T]]) => Success(value.value.map(Cursor.Value(value.history, _)))
+        case cursor: Failure                    => cursor
+      }
+
+    override def andThen[T](validation: CursorValidation[A, T]): Cursor[F, T] =
+      F.traverse(value) { case Cursor.Value(history, o) =>
+        Cursor.fromValidated(validation.apply(Cursor.root(o))).modifyHistory(history ++ _)
+      } match {
+        case Success(value: Cursor.Value[F[T]]) => Success(value.value.map(Cursor.Value(value.history, _)))
+        case cursor: Failure                    => cursor
+      }
+
+    override def validate[T](validation: Validation[A, T]): Cursor[F, T] = {
+      F.traverse(value) { case Cursor.Value(history, a) =>
+        validation
+          .run(a)
+          .leftMap(Cursor.Errors.one(history, _))
+          .map(b => Cursor.Value(history, b))
+      }.fold(Cursor.Failure.apply, Cursor.Success[F, T])
+    }
+
+    override def field[T](name: String, select: A => T): Cursor[F, T] =
+      Success(value.map(_.map(select))).modifyHistory(_ / name)
+
+    override def oneOf[T](f: A => (String, Validated[Errors, T])): Cursor[F, T] =
+      F.traverse(value) { case Cursor.Value(history, a) =>
+        val (name, result) = f(a)
+        result.leftMap(_.modifyHistory(history / name ++ _)).map(Cursor.Value(history / name, _))
+      }.fold(Failure.apply, Success[F, T])
+
+    override def unnamedOneOf[T](f: A => Validated[Errors, T]): Cursor[F, T] =
+      F.traverse(value) { case Cursor.Value(history, a) =>
+        f(a).leftMap(_.modifyHistory(history ++ _)).map(Cursor.Value(history, _))
+      }.fold(Failure.apply, Success[F, T])
   }
 
-  object Result {
-    final case class Success[F[_], A](value: F[Cursor.Value[A]])(implicit F: Traverse[F]) extends Result[F, A] {
-      override def mapValue[G[_]: Traverse, B](f: Value[A] => G[Value[B]]): Result[λ[a => F[G[a]]], B] =
-        Success[λ[a => F[G[a]]], B](value.map(f))(F.compose[G])
+  object Success {
+    def identity[A](value: Cursor.Value[A]): Cursor.Success[Identity, A] = Success[Identity, A](value)
+  }
 
-      override def modifyHistory(f: Selection.History => Selection.History): Result[F, A] =
-        Success(value.map(_.modifyHistory(f)))
+  final case class Failure(errors: Cursor.Errors) extends Cursor[Nothing, Nothing] {
+    override def modifyHistory(f: Selection.History => Selection.History): Cursor[Nothing, Nothing] =
+      Failure(errors.modifyHistory(f))
 
-      override def toValidated[AA >: A]: Validated[Cursor.Errors, F[AA]] =
-        value.traverse { case Cursor.Value(_, value) => Validated.valid[Cursor.Errors, A](value) }
-    }
+    override def run: Validated[Errors, Nothing] = Validated.invalid(errors)
 
-    object Success {
-      def id[A](value: Cursor.Value[A]): Cursor.Result[Id, A] = Success[Id, A](value)
-    }
+    override def map[T](f: Nothing => T): Cursor[Nothing, T] = this
 
-    final case class Failure(errors: Cursor.Errors) extends Result[Nothing, Nothing] {
-      override def mapValue[G[_]: Traverse, B](f: Value[Nothing] => G[Value[B]]): Result[Nothing, B] = this
+    override def flatMap[T](f: Nothing => Cursor[Identity, T]): Cursor[Nothing, T] = this
 
-      override def modifyHistory(f: Selection.History => Selection.History): Result[Nothing, Nothing] =
-        Failure(errors.modifyHistory(f))
+    override def andThen[T](validation: CursorValidation[Nothing, T]): Cursor[Nothing, T] = this
 
-      override def toValidated[AA >: Nothing]: Validated[Cursor.Errors, Nothing] = Validated.invalid(errors)
-    }
+    override def validate[T](validation: Validation[Nothing, T]): Cursor[Nothing, T] = this
 
-    def root[F[_]: Applicative: Traverse, A](value: A): Cursor.Result[F, A] =
-      Success(Value(Selection.History.Root, value).pure[F])
+    override def field[T](name: String, select: Nothing => T): Cursor[Nothing, T] = this
 
-    def id[A](value: A): Cursor.Result[Id, A] = Success.id(Value(Selection.History.Root, value))
+    override def oneOf[T](f: Nothing => (String, Validated[Errors, T])): Cursor[Nothing, T] = this
 
-    def fromValidatedNel[A](result: ValidatedNel[Validation.Error, A]): Cursor.Result[Id, A] =
-      result.fold(errors => Failure(Errors.root(errors)), Result.id)
+    override def unnamedOneOf[T](f: Nothing => Validated[Errors, T]): Cursor[Nothing, T] = this
+  }
 
-    implicit def applicative[F[_]: Applicative: Traverse]: Applicative[Result[F, *]] = new Applicative[Result[F, *]] {
-      override def pure[A](x: A): Result[F, A] = Result.root[F, A](x)
+  def pure[F[+_]: Applicative: Traverse, A](value: A): Cursor[F, A] =
+    Success[F, A](Cursor.Value(Selection.History.Root, value).pure[F])
 
-      override def ap[A, B](ff: Result[F, A => B])(fa: Result[F, A]): Result[F, B] = (ff, fa) match {
+  def root[A](value: A): Cursor[Identity, A] = pure[Identity, A](value)
+
+  def withHistory[A](history: Selection.History, value: A): Cursor[Identity, A] =
+    Success.identity(Cursor.Value(history, value))
+
+  def fromValidated[A](value: Validated[Cursor.Errors, A]): Cursor[Identity, A] =
+    value.fold(Failure.apply, a => Success.identity(Value(Selection.History.Root, a)))
+
+  def fromValidatedNel[A](value: ValidatedNel[Validation.Error, A]): Cursor[Identity, A] =
+    fromValidated(value.leftMap(Errors.root))
+
+  implicit def applicative[F[+_]: Applicative: Traverse]: Applicative[Cursor[F, *]] =
+    new Applicative[Cursor[F, *]] {
+      override def pure[T](x: T): Cursor[F, T] = Cursor.pure(x)
+
+      override def map[A, B](fa: Cursor[F, A])(f: A => B): Cursor[F, B] = fa.map(f)
+
+      override def ap[A, B](ff: Cursor[F, A => B])(fa: Cursor[F, A]): Cursor[F, B] = (ff, fa) match {
         case (Success(ff), Success(fa)) =>
           Success(Applicative[F].map2(ff, fa)((ff, fa) => Value(ff.history ++ fa.history, ff.value.apply(fa.value))))
         case (Failure(ff), Failure(fa)) => Failure(ff merge fa)
@@ -223,13 +219,4 @@ object Cursor {
         case (_, result: Failure)       => result
       }
     }
-  }
-
-  def apply[F[_]: Traverse, A](result: => Result[F, A]): Cursor[F, A] = new Cursor[F, A] {
-    override def get: Result[F, A] = result
-  }
-
-  def root[A](value: A): Cursor[Id, A] = Cursor[Id, A](Result.id(value))
-
-  def withHistory[A](history: Selection.History, value: A): Cursor[Id, A] = root(value).modifyHistory(_ => history)
 }

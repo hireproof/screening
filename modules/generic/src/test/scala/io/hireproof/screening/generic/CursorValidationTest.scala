@@ -26,7 +26,7 @@ final class CursorValidationTest extends FunSuite {
       val validation: Validation[String, City] = text.required.tap.map(apply)
     }
 
-    val validation: CursorValidation[User, (Age, City)] = CursorValidation[User, (Age, City)] { cursor =>
+    val validation: CursorValidation[User, (Age, City)] = CursorValidation { cursor =>
       val age = cursor
         .field("age", _.age)
         .runWith(Age.validation)
@@ -141,12 +141,10 @@ final class CursorValidationTest extends FunSuite {
       val validation: Validation[String, Reference] = text.email.tap.map(apply)
     }
 
-    val validation: CursorValidation[User, Reference] = CursorValidation { cursor =>
-      cursor.oneOf {
-        case User.Admin(name)  => "admin" -> Reference.validation.run(s"$name@inspector").leftMap(Cursor.Errors.root)
-        case user: User.Member => "member" -> User.Member.validation.run(user).map(_._1)
-        case User.Guest        => "guest" -> Validated.valid(Reference("unknown"))
-      }.run
+    val validation: CursorValidation[User, Reference] = CursorValidation.oneOf {
+      case User.Admin(name)  => "admin" -> Reference.validation.run(s"$name@inspector").leftMap(Cursor.Errors.root)
+      case user: User.Member => "member" -> User.Member.validation.run(user).map(_._1)
+      case User.Guest        => "guest" -> Validated.valid(Reference("unknown"))
     }
 
     assertEquals(

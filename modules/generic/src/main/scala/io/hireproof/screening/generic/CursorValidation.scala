@@ -1,19 +1,20 @@
 package io.hireproof.screening.generic
 
-import cats.Id
 import cats.data.Validated
+import io.hireproof.screening.generic.Cursor.Root
 
-abstract class CursorValidation[A, B] { self =>
-  def get(cursor: Cursor[Id, A]): Cursor.Result[Id, B]
+abstract class CursorValidation[-I, +O] {
+  def apply(cursor: Cursor.Root[I]): Validated[Cursor.Errors, O]
 
-  final def run(input: A): Validated[Cursor.Errors, B] = get(Cursor.root(input)).toValidated
+  final def run(input: I): Validated[Cursor.Errors, O] = apply(Cursor.root(input))
 }
 
 object CursorValidation {
-  def apply[A, B](f: Cursor[Id, A] => Cursor.Result[Id, B]): CursorValidation[A, B] = new CursorValidation[A, B] {
-    override def get(cursor: Cursor[Id, A]): Cursor.Result[Id, B] = f(cursor)
-  }
+  def apply[I, O](f: Cursor.Root[I] => Validated[Cursor.Errors, O]): CursorValidation[I, O] =
+    new CursorValidation[I, O] {
+      override def apply(cursor: Root[I]): Validated[Cursor.Errors, O] = f(cursor)
+    }
 
-  def oneOf[A, B](f: A => (String, Validated[Cursor.Errors, B])): CursorValidation[A, B] =
-    CursorValidation[A, B](_.oneOf(f).run)
+  def oneOf[I, O](f: I => (String, Validated[Cursor.Errors, O])): CursorValidation[I, O] =
+    CursorValidation[I, O](_.oneOf(f).run)
 }
