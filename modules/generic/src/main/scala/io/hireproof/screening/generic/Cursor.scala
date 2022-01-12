@@ -10,14 +10,9 @@ import scala.collection.immutable.SortedMap
 sealed abstract class Cursor[+F[+_], +A] { self =>
   def modifyHistory(f: Selection.History => Selection.History): Cursor[F, A]
 
-  def run: Cursor[Identity, F[A]]
+  def run: Validated[Cursor.Errors, F[A]]
 
-  final def runWith[T](validation: Validation[A, T]): Cursor[Identity, F[T]] = validate(validation).run
-
-  final def toValidated: Validated[Cursor.Errors, F[A]] = run match {
-    case Cursor.Success(value: Cursor.Value[F[A]]) => Validated.valid(value.value)
-    case Cursor.Failure(errors)                    => Validated.invalid(errors)
-  }
+  final def runWith[T](validation: Validation[A, T]): Validated[Cursor.Errors, F[T]] = validate(validation).run
 
   def map[T](f: A => T): Cursor[F, T]
 
@@ -25,7 +20,7 @@ sealed abstract class Cursor[+F[+_], +A] { self =>
 
   def andThen[T](validation: CursorValidation[A, T]): Cursor[F, T]
 
-  final def andThen[T](f: Cursor.Root[A] => Cursor.Root[T]): Cursor[F, T] = andThen(CursorValidation(f))
+  final def andThen[T](f: Cursor.Root[A] => Validated[Cursor.Errors, T]): Cursor[F, T] = andThen(CursorValidation(f))
 
   def validate[T](validation: Validation[A, T]): Cursor[F, T]
 
@@ -107,10 +102,8 @@ object Cursor {
     override def modifyHistory(f: Selection.History => Selection.History): Cursor[F, O] =
       Success[F, O](value.map(_.modifyHistory(f)))
 
-    override def run: Cursor[Identity, F[O]] =
-      F.traverse[Cursor[Identity, *], Value[O], O](value) { case Cursor.Value(history, o) =>
-        Cursor.Success[Identity, O](Cursor.Value(history, o))
-      }
+    override def run: Validated[Errors, F[O]] =
+      F.traverse[Validated[Errors, *], Value[O], O](value) { case Cursor.Value(_, o) => Validated.valid(o) }
 
     override def map[T](f: O => T): Cursor[F, T] = Success(value.map(_.map(f)))
 
@@ -121,7 +114,9 @@ object Cursor {
       }
 
     override def andThen[T](validation: CursorValidation[O, T]): Cursor[F, T] =
-      F.traverse(value) { case Cursor.Value(history, o) => validation.apply(Cursor.withHistory(history, o)) } match {
+      F.traverse(value) { case Cursor.Value(history, o) =>
+        Cursor.fromValidated(validation.apply(Cursor.root(o))).modifyHistory(history ++ _)
+      } match {
         case Success(value: Cursor.Value[F[T]]) => Success(value.value.map(Cursor.Value(value.history, _)))
         case cursor: Failure                    => cursor
       }
@@ -176,7 +171,7 @@ object Cursor {
     override def modifyHistory(f: Selection.History => Selection.History): Cursor[Nothing, Nothing] =
       Failure(errors.modifyHistory(f))
 
-    override def run: Cursor[Identity, Nothing] = this
+    override def run: Validated[Errors, Nothing] = Validated.invalid(errors)
 
     override def map[T](f: Nothing => T): Cursor[Nothing, T] = this
 

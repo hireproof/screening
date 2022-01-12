@@ -117,41 +117,39 @@ final class CursorValidationTest extends FunSuite {
     )
   }
 
-//  test("oneOf") {
-//    sealed abstract class User extends Product with Serializable
-//
-//    object User {
-//      final case class Admin(name: String) extends User
-//      final case class Member(email: String, age: Int) extends User
-//
-//      object Member {
-//        val validation: CursorValidation[User.Member, (Reference, Int)] = CursorValidation { cursor =>
-//          val email = cursor.field("email", _.email).runWith(Reference.validation)
-//          val age = cursor.field("age", _.age).runWith(number.greaterThan(18, equal = true).tap)
-//          (email, age).tupled
-//        }
-//      }
-//
-//      case object Guest extends User
-//    }
-//
-//    final case class Reference(value: String)
-//
-//    object Reference {
-//      val validation: Validation[String, Reference] = text.email.tap.map(apply)
-//    }
-//
-//    val validation: CursorValidation[User, Reference] = CursorValidation { cursor =>
-//      cursor.oneOf {
-//        case User.Admin(name)  => "admin" -> Reference.validation.run(s"$name@inspector").leftMap(Cursor.Errors.root)
-//        case user: User.Member => "member" -> User.Member.validation.run(user).map(_._1)
-//        case User.Guest        => "guest" -> Validated.valid(Reference("unknown"))
-//      }.run
-//    }
-//
-//    assertEquals(
-//      obtained = validation.run(User.Admin("taig")),
-//      expected = Validated.valid(Reference("taig@inspector"))
-//    )
-//  }
+  test("oneOf") {
+    sealed abstract class User extends Product with Serializable
+
+    object User {
+      final case class Admin(name: String) extends User
+      final case class Member(email: String, age: Int) extends User
+
+      object Member {
+        val validation: CursorValidation[User.Member, (Reference, Int)] = CursorValidation { cursor =>
+          val email = cursor.field("email", _.email).runWith(Reference.validation)
+          val age = cursor.field("age", _.age).runWith(number.greaterThan(18, equal = true).tap)
+          (email, age).tupled
+        }
+      }
+
+      case object Guest extends User
+    }
+
+    final case class Reference(value: String)
+
+    object Reference {
+      val validation: Validation[String, Reference] = text.email.tap.map(apply)
+    }
+
+    val validation: CursorValidation[User, Reference] = CursorValidation.oneOf {
+      case User.Admin(name)  => "admin" -> Reference.validation.run(s"$name@inspector").leftMap(Cursor.Errors.root)
+      case user: User.Member => "member" -> User.Member.validation.run(user).map(_._1)
+      case User.Guest        => "guest" -> Validated.valid(Reference("unknown"))
+    }
+
+    assertEquals(
+      obtained = validation.run(User.Admin("taig")),
+      expected = Validated.valid(Reference("taig@inspector"))
+    )
+  }
 }

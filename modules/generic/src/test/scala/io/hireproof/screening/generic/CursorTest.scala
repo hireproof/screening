@@ -113,143 +113,137 @@ final class CursorTest extends FunSuite {
     assertEquals(obtained, expected)
   }
 
-//  test("field + collection: success") {
-//    case class Foo(bars: List[String])
-//
-//    case class Name(value: String)
-//
-//    val values = List("foo", "bar", "baz")
-//
-//    val obtained = Cursor
-//      .root(Foo(values))
-//      .field("bars", _.bars)
-//      .thenValidate(CursorValidation(_.collection.runWith(lift(Name.apply))))
-//      .ensure(collection.atMost[List, Name](3))
-//
-//    val expected = Cursor.Result.Success.id(Cursor.Value(__ / "bars", values.map(Name.apply)))
-//
-//    assertEquals(obtained, expected)
-//  }
+  test("field + collection: success") {
+    case class Foo(bars: List[String])
 
-//  test("field + collection: failure (inner)") {
-//    case class Foo(bars: List[String])
-//
-//    case class Name(value: String)
-//
-//    val values = List("foo", "", "baz")
-//
-//    val obtained = Cursor
-//      .root(Foo(values))
-//      .field("bars", _.bars)
-//      .thenValidate(CursorValidation(_.collection.runWith(text.required.map(Name.apply))))
-//      .ensure(collection.atMost[List, Name](3))
-//      .get
-//
-//    val expected = Cursor.Result.Failure(Cursor.Errors.oneNel(__ / "bars" / 1, requiredError))
-//
-//    assertEquals(obtained, expected)
-//  }
-//
-//  test("field + collection: failure (outer)") {
-//    case class Foo(bars: List[String])
-//
-//    case class Name(value: String)
-//
-//    val values = List("foo", "bar", "baz")
-//
-//    val obtained = Cursor
-//      .root(Foo(values))
-//      .field("bars", _.bars)
-//      .thenValidate(CursorValidation(_.collection.runWith(text.required.map(Name.apply))))
-//      .ensure(collection.atMost[List, Name](1))
-//      .get
-//
-//    val expected = Cursor.Result.Failure(
-//      Cursor.Errors.oneNel(
-//        __ / "bars",
-//        Validation.Error.Collection.AtMost(equal = true, reference = 1, actual = values.length)
-//      )
-//    )
-//
-//    assertEquals(obtained, expected)
-//  }
-//
-//  test("option: success") {
-//    case class Foo(bar: String)
-//    case class Bar(foo: Option[Foo])
-//
-//    val obtained = Cursor
-//      .root(Bar(Some(Foo(""))))
-//      .option("foo", _.foo)
-//      .field("bar", _.bar)
-//      .get
-//
-//    val expected = Cursor.Result.Success[Option, String](Some(Cursor.Value(__ / "foo" / "bar", "")))
-//
-//    assertEquals(obtained, expected)
-//  }
-//
-//  test("option: failure") {
-//    case class Foo(bar: String)
-//    case class Bar(foo: Option[Foo])
-//
-//    val obtained = Cursor
-//      .root(Bar(Some(Foo(""))))
-//      .option("foo", _.foo)
-//      .field("bar", _.bar)
-//      .validate(text.required)
-//      .get
-//
-//    val expected = Cursor.Result.Failure(Cursor.Errors.oneNel(__ / "foo" / "bar", requiredError))
-//
-//    assertEquals(obtained, expected)
-//  }
-//
-//  test("oneOf: success") {
-//    sealed abstract class Animal extends Product with Serializable
-//
-//    object Animal {
-//      final case class Cat(name: String) extends Animal
-//      final case class Dog(goodBoy: Boolean) extends Animal
-//    }
-//
-//    final case class Zoo(animal: Animal)
-//
-//    val obtained = Cursor
-//      .root(Zoo(Animal.Dog(goodBoy = true)))
-//      .field("animal", _.animal)
-//      .oneOf {
-//        case Animal.Cat(_) => "cat" -> Validated.valid("foo")
-//        case Animal.Dog(_) => "dog" -> Validated.valid("bar")
-//      }
-//      .get
-//
-//    val expected = Cursor.Result.Success.id(Cursor.Value(__ / "animal" / "dog", "bar"))
-//
-//    assertEquals(obtained, expected)
-//  }
-//
-//  test("oneOf: failure") {
-//    sealed abstract class Animal extends Product with Serializable
-//
-//    object Animal {
-//      final case class Cat(name: String) extends Animal
-//      final case class Dog(goodBoy: Boolean) extends Animal
-//    }
-//
-//    final case class Zoo(animal: Animal)
-//
-//    val obtained = Cursor
-//      .root(Zoo(Animal.Cat(name = "")))
-//      .field("animal", _.animal)
-//      .oneOf {
-//        case Animal.Cat(name) => "cat" -> text.required.run(name).leftMap(Cursor.Errors.root)
-//        case Animal.Dog(_)    => "dog" -> Validated.valid("bar")
-//      }
-//      .get
-//
-//    val expected = Cursor.Result.Failure(Cursor.Errors.oneNel(__ / "animal" / "cat", requiredError))
-//
-//    assertEquals(obtained, expected)
-//  }
+    case class Name(value: String)
+
+    val values = List("foo", "bar", "baz")
+
+    val obtained = Cursor
+      .root(Foo(values))
+      .field("bars", _.bars)
+      .andThen(_.collection.runWith(lift(Name.apply)))
+      .ensure(collection.atMost[List, Name](3))
+
+    val expected = Cursor.withHistory(__ / "bars", values.map(Name.apply))
+
+    assertEquals(obtained, expected)
+  }
+
+  test("field + collection: failure (inner)") {
+    case class Foo(bars: List[String])
+
+    case class Name(value: String)
+
+    val values = List("foo", "", "baz")
+
+    val obtained = Cursor
+      .root(Foo(values))
+      .field("bars", _.bars)
+      .andThen(_.collection.runWith(text.required.map(Name.apply)))
+      .ensure(collection.atMost[List, Name](3))
+
+    val expected = Cursor.Failure(Cursor.Errors.oneNel(__ / "bars" / 1, requiredError))
+
+    assertEquals(obtained, expected)
+  }
+
+  test("field + collection: failure (outer)") {
+    case class Foo(bars: List[String])
+
+    case class Name(value: String)
+
+    val values = List("foo", "bar", "baz")
+
+    val obtained = Cursor
+      .root(Foo(values))
+      .field("bars", _.bars)
+      .andThen(_.collection.runWith(text.required.map(Name.apply)))
+      .ensure(collection.atMost[List, Name](1))
+
+    val expected = Cursor.Failure(
+      Cursor.Errors.oneNel(
+        __ / "bars",
+        Validation.Error.Collection.AtMost(equal = true, reference = 1, actual = values.length)
+      )
+    )
+
+    assertEquals(obtained, expected)
+  }
+
+  test("option: success") {
+    case class Foo(bar: String)
+    case class Bar(foo: Option[Foo])
+
+    val obtained = Cursor
+      .root(Bar(Some(Foo(""))))
+      .option("foo", _.foo)
+      .field("bar", _.bar)
+
+    val expected = Cursor.Success[Option, String](Some(Cursor.Value(__ / "foo" / "bar", "")))
+
+    assertEquals(obtained, expected)
+  }
+
+  test("option: failure") {
+    case class Foo(bar: String)
+    case class Bar(foo: Option[Foo])
+
+    val obtained = Cursor
+      .root(Bar(Some(Foo(""))))
+      .option("foo", _.foo)
+      .field("bar", _.bar)
+      .validate(text.required)
+
+    val expected = Cursor.Failure(Cursor.Errors.oneNel(__ / "foo" / "bar", requiredError))
+
+    assertEquals(obtained, expected)
+  }
+
+  test("oneOf: success") {
+    sealed abstract class Animal extends Product with Serializable
+
+    object Animal {
+      final case class Cat(name: String) extends Animal
+      final case class Dog(goodBoy: Boolean) extends Animal
+    }
+
+    final case class Zoo(animal: Animal)
+
+    val obtained = Cursor
+      .root(Zoo(Animal.Dog(goodBoy = true)))
+      .field("animal", _.animal)
+      .oneOf {
+        case Animal.Cat(_) => "cat" -> Validated.valid("foo")
+        case Animal.Dog(_) => "dog" -> Validated.valid("bar")
+      }
+
+    val expected = Cursor.withHistory(__ / "animal" / "dog", "bar")
+
+    assertEquals(obtained, expected)
+  }
+
+  test("oneOf: failure") {
+    sealed abstract class Animal extends Product with Serializable
+
+    object Animal {
+      final case class Cat(name: String) extends Animal
+      final case class Dog(goodBoy: Boolean) extends Animal
+    }
+
+    final case class Zoo(animal: Animal)
+
+    val obtained = Cursor
+      .root(Zoo(Animal.Cat(name = "")))
+      .field("animal", _.animal)
+      .oneOf {
+        case Animal.Cat(name) => "cat" -> text.required.run(name).leftMap(Cursor.Errors.root)
+        case Animal.Dog(_)    => "dog" -> Validated.valid("bar")
+      }
+
+    val expected = Cursor.Failure(Cursor.Errors.oneNel(__ / "animal" / "cat", requiredError))
+
+    assertEquals(obtained, expected)
+  }
 }
