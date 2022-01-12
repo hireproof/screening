@@ -1,3 +1,5 @@
+import sbtcrossproject.CrossProject
+
 val Version = new {
   val Cats = "2.7.0"
   val Circe = "0.14.1"
@@ -7,6 +9,14 @@ val Version = new {
   val Scala3 = "3.1.0"
   val ScalaJavaTime = "2.3.0"
 }
+
+def module(identifier: Option[String]): CrossProject =
+  CrossProject(identifier.getOrElse("root"), file(identifier.fold(".")("modules/" + _)))(JVMPlatform, JSPlatform)
+    .crossType(CrossType.Pure)
+    .build()
+    .settings(
+      name := "screening" + identifier.fold("")("-" + _)
+    )
 
 inThisBuild(
   Def.settings(
@@ -23,23 +33,22 @@ inThisBuild(
   )
 )
 
-enablePlugins(BlowoutYamlPlugin)
-
-noPublishSettings
-
-blowoutGenerators ++= {
-  val workflows = file(".github") / "workflows"
-
-  BlowoutYamlGenerator.lzy(workflows / "main.yml", GithubActionsGenerator.main(Version.Java)) ::
-    BlowoutYamlGenerator.lzy(workflows / "pull-request.yml", GithubActionsGenerator.pullRequest(Version.Java)) ::
-    Nil
-}
-
-lazy val core = crossProject(JVMPlatform, JSPlatform)
-  .crossType(CrossType.Pure)
-  .in(file("modules/core"))
+lazy val root = module(identifier = None)
+  .enablePlugins(BlowoutYamlPlugin)
+  .settings(noPublishSettings)
   .settings(
-    name := "screening-core",
+    blowoutGenerators ++= {
+      val workflows = file(".github") / "workflows"
+
+      BlowoutYamlGenerator.lzy(workflows / "main.yml", GithubActionsGenerator.main(Version.Java)) ::
+        BlowoutYamlGenerator.lzy(workflows / "pull-request.yml", GithubActionsGenerator.pullRequest(Version.Java)) ::
+        Nil
+    }
+  )
+  .aggregate(core, generic, jsonCirce)
+
+lazy val core = module(identifier = Some("core"))
+  .settings(
     libraryDependencies ++=
       "org.typelevel" %%% "cats-core" % Version.Cats ::
         "org.scalameta" %%% "munit" % Version.Munit % "test" ::
@@ -51,19 +60,10 @@ lazy val core = crossProject(JVMPlatform, JSPlatform)
         Nil
   )
 
-lazy val generic = crossProject(JVMPlatform, JSPlatform)
-  .crossType(CrossType.Pure)
-  .in(file("modules/generic"))
-  .settings(
-    name := "screening-generic"
-  )
-  .dependsOn(core % "compile->compile;test->test")
+lazy val generic = module(identifier = Some("generic")).dependsOn(core % "compile->compile;test->test")
 
-lazy val jsonCirce = crossProject(JVMPlatform, JSPlatform)
-  .crossType(CrossType.Pure)
-  .in(file("modules/json-circe"))
+lazy val jsonCirce = module(identifier = Some("json-circe"))
   .settings(
-    name := "screening-json-circe",
     libraryDependencies ++=
       "io.circe" %%% "circe-core" % Version.Circe ::
         Nil,
