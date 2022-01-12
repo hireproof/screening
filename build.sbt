@@ -3,7 +3,7 @@ val Version = new {
   val Circe = "0.14.1"
   val Java = "11"
   val Munit = "0.7.29"
-  val Scala213 = "2.13.7"
+  val Scala213 = "2.13.8"
   val Scala3 = "3.1.0"
   val ScalaJavaTime = "2.3.0"
 }
