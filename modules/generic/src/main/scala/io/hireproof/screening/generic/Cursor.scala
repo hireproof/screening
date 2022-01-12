@@ -7,43 +7,45 @@ import io.hireproof.screening.Validation
 
 import scala.collection.immutable.SortedMap
 
-sealed abstract class Cursor[+F[+_], +O] { self =>
-  def modifyHistory(f: Selection.History => Selection.History): Cursor[F, O]
+sealed abstract class Cursor[+F[+_], +A] { self =>
+  def modifyHistory(f: Selection.History => Selection.History): Cursor[F, A]
 
-  def run: Cursor[Identity, F[O]]
+  def run: Cursor[Identity, F[A]]
 
-  final def runWith[T](validation: Validation[O, T]): Cursor[Identity, F[T]] = validate(validation).run
+  final def runWith[T](validation: Validation[A, T]): Cursor[Identity, F[T]] = validate(validation).run
 
-  final def toValidated: Validated[Cursor.Errors, F[O]] = run match {
-    case Cursor.Success(value: Cursor.Value[F[O]]) => Validated.valid(value.value)
+  final def toValidated: Validated[Cursor.Errors, F[A]] = run match {
+    case Cursor.Success(value: Cursor.Value[F[A]]) => Validated.valid(value.value)
     case Cursor.Failure(errors)                    => Validated.invalid(errors)
   }
 
-  def map[T](f: O => T): Cursor[F, T]
+  def map[T](f: A => T): Cursor[F, T]
 
-  def andThen[T](f: O => Cursor[Identity, T]): Cursor[F, T]
+  def andThen[T](f: A => Cursor[Identity, T]): Cursor[F, T]
 
-  def validate[T](validation: Validation[O, T]): Cursor[F, T]
+  def andThen[T](validation: CursorValidation[A, T]): Cursor[F, T]
 
-  final def ensure[T](validation: Validation[O, Unit]): Cursor[F, O] = validate(validation.tap)
+  def validate[T](validation: Validation[A, T]): Cursor[F, T]
 
-  def oneOf[T](f: O => (String, Validated[Cursor.Errors, T])): Cursor[F, T]
+  final def ensure[T](validation: Validation[A, Unit]): Cursor[F, A] = validate(validation.tap)
 
-  def unnamedOneOf[T](f: O => Validated[Cursor.Errors, T]): Cursor[F, T]
+  def oneOf[T](f: A => (String, Validated[Cursor.Errors, T])): Cursor[F, T]
 
-  def field[T](name: String, select: O => T): Cursor[F, T]
+  def unnamedOneOf[T](f: A => Validated[Cursor.Errors, T]): Cursor[F, T]
 
-  def option[T](implicit ev: O <:< Option[T]): Cursor[λ[`+a` => F[Option[a]]], T]
+  def field[T](name: String, select: A => T): Cursor[F, T]
 
-  final def option[B](name: String, select: O => Option[B]): Cursor[λ[`+a` => F[Option[a]]], B] =
+  def option[T](implicit ev: A <:< Option[T]): Cursor[λ[`+a` => F[Option[a]]], T]
+
+  final def option[B](name: String, select: A => Option[B]): Cursor[λ[`+a` => F[Option[a]]], B] =
     field(name, select).option
 
-  def collection[G[+_], B](implicit ev: O <:< G[B], G: Traverse[G]): Cursor[λ[`+a` => F[G[a]]], B]
+  def collection[G[+_], B](implicit ev: A <:< G[B], G: Traverse[G]): Cursor[λ[`+a` => F[G[a]]], B]
 
-  final def collection[G[+_]: Traverse, T](name: String, select: O => G[T]): Cursor[λ[`+a` => F[G[a]]], T] =
+  final def collection[G[+_]: Traverse, T](name: String, select: A => G[T]): Cursor[λ[`+a` => F[G[a]]], T] =
     field(name, select).collection
 
-  def unindexedCollection[G[+_], T](implicit ev: O <:< G[T], G: Traverse[G]): Cursor[λ[`+a` => F[G[a]]], T]
+  def unindexedCollection[G[+_], T](implicit ev: A <:< G[T], G: Traverse[G]): Cursor[λ[`+a` => F[G[a]]], T]
 }
 
 object Cursor {
@@ -114,6 +116,12 @@ object Cursor {
         case cursor: Failure                    => cursor
       }
 
+    override def andThen[T](validation: CursorValidation[O, T]): Cursor[F, T] =
+      F.traverse(value) { case Cursor.Value(history, o) => validation.apply(Cursor.withHistory(history, o)) } match {
+        case Success(value: Cursor.Value[F[T]]) => Success(value.value.map(Cursor.Value(value.history, _)))
+        case cursor: Failure                    => cursor
+      }
+
     override def validate[T](validation: Validation[O, T]): Cursor[F, T] = {
       F.traverse(value) { case Cursor.Value(history, a) =>
         validation
@@ -169,6 +177,8 @@ object Cursor {
     override def map[T](f: Nothing => T): Cursor[Nothing, T] = this
 
     override def andThen[T](f: Nothing => Cursor[Identity, T]): Cursor[Nothing, T] = this
+
+    override def andThen[T](validation: CursorValidation[Nothing, T]): Cursor[Nothing, T] = this
 
     override def validate[T](validation: Validation[Nothing, T]): Cursor[Nothing, T] = this
 
