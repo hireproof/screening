@@ -35,7 +35,7 @@ final class CursorTest extends FunSuite {
 
     case class Foo(bar: Option[Bar])
 
-    val obtained = Cursor.root(Foo(Some(Bar("foobar")))).option("bar", _.bar).andThen { bar =>
+    val obtained = Cursor.root(Foo(Some(Bar("foobar")))).option("bar", _.bar).flatMap { bar =>
       Cursor.root(bar).field("value", _.value).validate(text.required)
     }
 
@@ -49,7 +49,7 @@ final class CursorTest extends FunSuite {
 
     case class Foo(bar: Option[Bar])
 
-    val obtained = Cursor.root(Foo(Some(Bar("")))).option("bar", _.bar).andThen { bar =>
+    val obtained = Cursor.root(Foo(Some(Bar("")))).option("bar", _.bar).flatMap { bar =>
       Cursor.root(bar).field("value", _.value).validate(text.required)
     }
 

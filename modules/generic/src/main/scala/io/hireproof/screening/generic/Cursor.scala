@@ -21,9 +21,11 @@ sealed abstract class Cursor[+F[+_], +A] { self =>
 
   def map[T](f: A => T): Cursor[F, T]
 
-  def andThen[T](f: A => Cursor[Identity, T]): Cursor[F, T]
+  def flatMap[T](f: A => Cursor[Identity, T]): Cursor[F, T]
 
   def andThen[T](validation: CursorValidation[A, T]): Cursor[F, T]
+
+  final def andThen[T](f: Cursor.Root[A] => Cursor.Root[T]): Cursor[F, T] = andThen(CursorValidation(f))
 
   def validate[T](validation: Validation[A, T]): Cursor[F, T]
 
@@ -49,6 +51,8 @@ sealed abstract class Cursor[+F[+_], +A] { self =>
 }
 
 object Cursor {
+  type Root[+A] = Cursor[Identity, A]
+
   final case class Value[+A](history: Selection.History, value: A) {
     def modifyHistory(f: Selection.History => Selection.History): Cursor.Value[A] = copy(history = f(history))
 
@@ -110,7 +114,7 @@ object Cursor {
 
     override def map[T](f: O => T): Cursor[F, T] = Success(value.map(_.map(f)))
 
-    override def andThen[T](f: O => Cursor[Identity, T]): Cursor[F, T] =
+    override def flatMap[T](f: O => Cursor[Identity, T]): Cursor[F, T] =
       F.traverse(value) { case Cursor.Value(history, o) => f(o).modifyHistory(history ++ _) } match {
         case Success(value: Cursor.Value[F[T]]) => Success(value.value.map(Cursor.Value(value.history, _)))
         case cursor: Failure                    => cursor
@@ -176,7 +180,7 @@ object Cursor {
 
     override def map[T](f: Nothing => T): Cursor[Nothing, T] = this
 
-    override def andThen[T](f: Nothing => Cursor[Identity, T]): Cursor[Nothing, T] = this
+    override def flatMap[T](f: Nothing => Cursor[Identity, T]): Cursor[Nothing, T] = this
 
     override def andThen[T](validation: CursorValidation[Nothing, T]): Cursor[Nothing, T] = this
 

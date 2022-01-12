@@ -55,68 +55,68 @@ final class CursorValidationTest extends FunSuite {
     )
   }
 
-//  test("option") {
-//    final case class User(name: Option[String])
-//
-//    final case class Name(value: String)
-//
-//    object Name {
-//      val validation: Validation[String, Name] = text.required.map(apply)
-//    }
-//
-//    val validation: CursorValidation[User, Option[Name]] = CursorValidation { cursor =>
-//      cursor.option("name", _.name).runWith(Name.validation)
-//    }
-//
-//    assertEquals(obtained = validation.run(User(Some("taig"))), expected = Validated.valid(Some(Name("taig"))))
-//    assertEquals(obtained = validation.run(User(None)), expected = Validated.valid(None))
-//
-//    assertEquals(
-//      obtained = validation.run(User(Some(""))),
-//      expected = Validated.invalid(
-//        Cursor.Errors.oneNel(
-//          __ / "name",
-//          Validation.Error.Text.AtLeast(equal = false, reference = 0, actual = 0)
-//        )
-//      )
-//    )
-//  }
-//
-//  test("collection") {
-//    final case class Users(names: List[String])
-//
-//    final case class Name(value: String)
-//
-//    object Name {
-//      val validation: Validation[String, Name] = text.required.map(apply)
-//    }
-//
-//    val validation: CursorValidation[Users, List[Name]] = CursorValidation { cursor =>
-//      cursor
-//        .field("names", _.names)
-//        .ensure(collection.atLeast[List, String](1))
-//        .collection
-//        .runWith(Name.validation)
-//    }
-//
-//    assertEquals(
-//      obtained = validation.run(Users(Nil)),
-//      expected = Validated.invalid(
-//        Cursor.Errors.oneNel(__ / "names", Validation.Error.Collection.AtLeast(equal = true, 1, 0))
-//      )
-//    )
-//
-//    assertEquals(
-//      obtained = validation.run(Users(List("", "foo", ""))),
-//      expected = Validated.invalid(
-//        Cursor.Errors.ofError(
-//          (__ / "names" / 0) -> Validation.Error.Text.AtLeast(equal = false, 0, 0),
-//          (__ / "names" / 2) -> Validation.Error.Text.AtLeast(equal = false, 0, 0)
-//        )
-//      )
-//    )
-//  }
-//
+  test("option") {
+    final case class User(name: Option[String])
+
+    final case class Name(value: String)
+
+    object Name {
+      val validation: Validation[String, Name] = text.required.map(apply)
+    }
+
+    val validation: CursorValidation[User, Option[Name]] = CursorValidation { cursor =>
+      cursor.option("name", _.name).runWith(Name.validation)
+    }
+
+    assertEquals(obtained = validation.run(User(Some("taig"))), expected = Validated.valid(Some(Name("taig"))))
+    assertEquals(obtained = validation.run(User(None)), expected = Validated.valid(None))
+
+    assertEquals(
+      obtained = validation.run(User(Some(""))),
+      expected = Validated.invalid(
+        Cursor.Errors.oneNel(
+          __ / "name",
+          Validation.Error.Text.AtLeast(equal = false, reference = 0, actual = 0)
+        )
+      )
+    )
+  }
+
+  test("collection") {
+    final case class Users(names: List[String])
+
+    final case class Name(value: String)
+
+    object Name {
+      val validation: Validation[String, Name] = text.required.map(apply)
+    }
+
+    val validation: CursorValidation[Users, List[Name]] = CursorValidation { cursor =>
+      cursor
+        .field("names", _.names)
+        .ensure(collection.atLeast[List, String](1))
+        .collection
+        .runWith(Name.validation)
+    }
+
+    assertEquals(
+      obtained = validation.run(Users(Nil)),
+      expected = Validated.invalid(
+        Cursor.Errors.oneNel(__ / "names", Validation.Error.Collection.AtLeast(equal = true, 1, 0))
+      )
+    )
+
+    assertEquals(
+      obtained = validation.run(Users(List("", "foo", ""))),
+      expected = Validated.invalid(
+        Cursor.Errors.ofError(
+          (__ / "names" / 0) -> Validation.Error.Text.AtLeast(equal = false, 0, 0),
+          (__ / "names" / 2) -> Validation.Error.Text.AtLeast(equal = false, 0, 0)
+        )
+      )
+    )
+  }
+
 //  test("oneOf") {
 //    sealed abstract class User extends Product with Serializable
 //
