@@ -19,6 +19,8 @@ jobs:
         java-version: '11'
     - name: Checkout
       uses: actions/checkout@v2.4.0
+      with:
+        fetch-depth: 0
     - name: Cache
       uses: coursier/cache-action@v6.3
     - name: Workflows
@@ -38,6 +40,8 @@ jobs:
         java-version: '11'
     - name: Checkout
       uses: actions/checkout@v2.4.0
+      with:
+        fetch-depth: 0
     - name: Cache
       uses: coursier/cache-action@v6.3
     - name: Tests
@@ -56,6 +60,8 @@ jobs:
         java-version: '11'
     - name: Checkout
       uses: actions/checkout@v2.4.0
+      with:
+        fetch-depth: 0
     - name: Cache
       uses: coursier/cache-action@v6.3
     - name: Release
