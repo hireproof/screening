@@ -336,7 +336,7 @@ object Validation {
   }
 
   implicit final class Ops[I, O](val validation: Validation[I, O]) extends AnyVal {
-    final def required[T](implicit ev: O =:= Option[T]): Validation[I, T] =
+    def required[T](implicit ev: O =:= Option[T]): Validation[I, T] =
       Validation.Optional.Required(validation.map(ev.apply))
 
     def tap: Validation[I, I] = validation.first[I].dimap((i: I) => (i, i))(_._2)
@@ -426,6 +426,8 @@ object Validation {
     }
 
     final case class Unknown(actual: String) extends Error
+
+    implicit val eq: Eq[Validation.Error] = Eq.fromUniversalEquals
   }
 
   def ask[A]: Validation[A, A] = Lift(identity)
