@@ -7,6 +7,8 @@ import java.time.Instant
 import java.time.format.DateTimeParseException
 
 package object screening {
+  val __ : Selection.History = Selection.History.Root
+
   implicit class RichValidatedNel[E, A](val validated: ValidatedNel[E, A]) extends AnyVal {
     def errors: List[E] = validated.fold(_.toList, _ => Nil)
 

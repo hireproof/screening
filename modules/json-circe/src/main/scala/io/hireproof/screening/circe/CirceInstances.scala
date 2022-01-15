@@ -4,9 +4,9 @@ import cats.data.{NonEmptyList, NonEmptyMap}
 import cats.syntax.all._
 import io.circe._
 import io.circe.syntax._
-import io.hireproof.screening.Validation
+import io.hireproof.screening.{Selection, Validation}
 import io.hireproof.screening.Validation.Parsing.Value
-import io.hireproof.screening.generic.{Cursor, Selection}
+import io.hireproof.screening.generic.Cursor
 
 import java.time.Instant
 import java.util.concurrent.TimeUnit

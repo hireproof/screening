@@ -3,7 +3,7 @@ package io.hireproof.screening.generic
 import cats._
 import cats.data.{NonEmptyList, NonEmptyMap, Validated, ValidatedNel}
 import cats.syntax.all._
-import io.hireproof.screening.Validation
+import io.hireproof.screening.{Selection, Validation}
 
 import scala.collection.immutable.SortedMap
 

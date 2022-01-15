@@ -1,4 +1,4 @@
-package io.hireproof.screening.generic
+package io.hireproof.screening
 
 import munit.FunSuite
 

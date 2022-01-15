@@ -2,7 +2,7 @@ package io.hireproof.screening.generic
 
 import cats.data.Validated
 import cats.syntax.all._
-import io.hireproof.screening.Validation
+import io.hireproof.screening._
 import io.hireproof.screening.validations._
 import munit.FunSuite
 
