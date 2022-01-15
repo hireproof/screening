@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.0.5
+
+_2022-01-16_
+
+* Move `Cursor.Errors` to `Validation.Errors`
+
 ## 0.0.4
 
 _2022-01-15_
