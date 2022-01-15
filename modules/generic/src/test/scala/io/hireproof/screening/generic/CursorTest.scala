@@ -25,7 +25,8 @@ final class CursorTest extends FunSuite {
       .validate(Validation.invalidNel(Validation.Error.Unknown("x")))
       .modifyHistory(_ / "suffix")
 
-    val expected = Cursor.Failure(Cursor.Errors.oneNel(__ / "foo" / "bar" / "suffix", Validation.Error.Unknown("x")))
+    val expected =
+      Cursor.Failure(Validation.Errors.oneNel(__ / "foo" / "bar" / "suffix", Validation.Error.Unknown("x")))
 
     assertEquals(obtained, expected)
   }
@@ -53,7 +54,7 @@ final class CursorTest extends FunSuite {
       Cursor.root(bar).field("value", _.value).validate(text.required)
     }
 
-    val expected = Cursor.Failure(Cursor.Errors.oneNel(__ / "bar" / "value", requiredError))
+    val expected = Cursor.Failure(Validation.Errors.oneNel(__ / "bar" / "value", requiredError))
 
     assertEquals(obtained, expected)
   }
@@ -79,7 +80,7 @@ final class CursorTest extends FunSuite {
       .field("bar", _.bar)
       .validate(text.required)
 
-    val expected = Cursor.Failure(Cursor.Errors.oneNel(__ / "foo" / "bar", requiredError))
+    val expected = Cursor.Failure(Validation.Errors.oneNel(__ / "foo" / "bar", requiredError))
 
     assertEquals(obtained, expected)
   }
@@ -107,7 +108,7 @@ final class CursorTest extends FunSuite {
       .validate(text.required)
 
     val expected = Cursor.Failure(
-      Cursor.Errors.ofError(__ / 0 -> requiredError, __ / 2 -> requiredError).modifyHistory(__ / "bars" ++ _)
+      Validation.Errors.ofError(__ / 0 -> requiredError, __ / 2 -> requiredError).modifyHistory(__ / "bars" ++ _)
     )
 
     assertEquals(obtained, expected)
@@ -144,7 +145,7 @@ final class CursorTest extends FunSuite {
       .andThen(_.collection.runWith(text.required.map(Name.apply)))
       .ensure(collection.atMost[List, Name](3))
 
-    val expected = Cursor.Failure(Cursor.Errors.oneNel(__ / "bars" / 1, requiredError))
+    val expected = Cursor.Failure(Validation.Errors.oneNel(__ / "bars" / 1, requiredError))
 
     assertEquals(obtained, expected)
   }
@@ -163,7 +164,7 @@ final class CursorTest extends FunSuite {
       .ensure(collection.atMost[List, Name](1))
 
     val expected = Cursor.Failure(
-      Cursor.Errors.oneNel(
+      Validation.Errors.oneNel(
         __ / "bars",
         Validation.Error.Collection.AtMost(equal = true, reference = 1, actual = values.length)
       )
@@ -196,7 +197,7 @@ final class CursorTest extends FunSuite {
       .field("bar", _.bar)
       .validate(text.required)
 
-    val expected = Cursor.Failure(Cursor.Errors.oneNel(__ / "foo" / "bar", requiredError))
+    val expected = Cursor.Failure(Validation.Errors.oneNel(__ / "foo" / "bar", requiredError))
 
     assertEquals(obtained, expected)
   }
@@ -238,11 +239,11 @@ final class CursorTest extends FunSuite {
       .root(Zoo(Animal.Cat(name = "")))
       .field("animal", _.animal)
       .oneOf {
-        case Animal.Cat(name) => "cat" -> text.required.run(name).leftMap(Cursor.Errors.root)
+        case Animal.Cat(name) => "cat" -> text.required.run(name).leftMap(Validation.Errors.root)
         case Animal.Dog(_)    => "dog" -> Validated.valid("bar")
       }
 
-    val expected = Cursor.Failure(Cursor.Errors.oneNel(__ / "animal" / "cat", requiredError))
+    val expected = Cursor.Failure(Validation.Errors.oneNel(__ / "animal" / "cat", requiredError))
 
     assertEquals(obtained, expected)
   }

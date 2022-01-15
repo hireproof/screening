@@ -4,9 +4,8 @@ import cats.data.{NonEmptyList, NonEmptyMap}
 import cats.syntax.all._
 import io.circe._
 import io.circe.syntax._
-import io.hireproof.screening.{Selection, Validation}
 import io.hireproof.screening.Validation.Parsing.Value
-import io.hireproof.screening.generic.Cursor
+import io.hireproof.screening.{Selection, Validation}
 
 import java.time.Instant
 import java.util.concurrent.TimeUnit
@@ -209,9 +208,9 @@ trait CirceInstances {
   implicit val keyDecoderInspectorSelectionHistory: KeyDecoder[Selection.History] =
     KeyDecoder.instance(Selection.History.parse(_).toOption)
 
-  implicit val decoderInspectorCursorErrors: Decoder[Cursor.Errors] =
-    Decoder[NonEmptyMap[Selection.History, NonEmptyList[Validation.Error]]].map(Cursor.Errors.apply)
+  implicit val decoderInspectorCursorErrors: Decoder[Validation.Errors] =
+    Decoder[NonEmptyMap[Selection.History, NonEmptyList[Validation.Error]]].map(Validation.Errors.apply)
 
-  implicit val encoderInspectorCursorErrors: Encoder[Cursor.Errors] =
+  implicit val encoderInspectorCursorErrors: Encoder[Validation.Errors] =
     Encoder[NonEmptyMap[Selection.History, NonEmptyList[Validation.Error]]].contramap(_.toNem)
 }

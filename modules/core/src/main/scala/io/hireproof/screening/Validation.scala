@@ -1,13 +1,14 @@
 package io.hireproof.screening
 
 import cats.arrow.Arrow
-import cats.data.{NonEmptyList, Validated, ValidatedNel}
+import cats.data.{NonEmptyList, NonEmptyMap, Validated, ValidatedNel}
 import cats.syntax.all._
-import cats.{Eq, Show}
+import cats.{Eq, Semigroup, Show}
 
 import java.time.Instant
 import scala.Numeric.Implicits._
 import scala.Ordering.Implicits._
+import scala.collection.immutable.SortedMap
 import scala.concurrent.duration.FiniteDuration
 import scala.util.matching.Regex
 
@@ -428,6 +429,50 @@ object Validation {
     final case class Unknown(actual: String) extends Error
 
     implicit val eq: Eq[Validation.Error] = Eq.fromUniversalEquals
+  }
+
+  final case class Errors(toNem: NonEmptyMap[Selection.History, NonEmptyList[Validation.Error]]) {
+    def modifyHistory(f: Selection.History => Selection.History): Validation.Errors = Errors(toNem.mapKeys(f))
+
+    def modifyError(f: NonEmptyList[Validation.Error] => NonEmptyList[Validation.Error]): Validation.Errors = Errors(
+      toNem.map(f)
+    )
+
+    def modifyErrors(f: Validation.Error => Validation.Error): Validation.Errors = modifyError(_.map(f))
+
+    def merge(errors: Validation.Errors): Validation.Errors = this |+| errors
+
+    def get(history: Selection.History): List[Validation.Error] = toNem(history).map(_.toList).orEmpty
+  }
+
+  object Errors {
+    def ofErrors(
+        head: (Selection.History, NonEmptyList[Validation.Error]),
+        tail: (Selection.History, NonEmptyList[Validation.Error])*
+    ): Validation.Errors = Errors(NonEmptyMap.of(head, tail: _*))
+
+    def ofError(
+        head: (Selection.History, Validation.Error),
+        tail: (Selection.History, Validation.Error)*
+    ): Validation.Errors =
+      Errors(NonEmptyMap.of(head.map(NonEmptyList.one), tail.map(_.map(NonEmptyList.one)): _*))
+
+    def one(history: Selection.History, errors: NonEmptyList[Validation.Error]): Validation.Errors =
+      Errors(NonEmptyMap.one(history, errors))
+
+    def oneNel(history: Selection.History, error: Validation.Error): Validation.Errors =
+      one(history, NonEmptyList.one(error))
+
+    def root(errors: NonEmptyList[Validation.Error]): Validation.Errors = one(Selection.History.Root, errors)
+
+    def rootNel(error: Validation.Error): Validation.Errors = oneNel(Selection.History.Root, error)
+
+    def fromMap(values: SortedMap[Selection.History, NonEmptyList[Validation.Error]]): Option[Validation.Errors] =
+      NonEmptyMap.fromMap(values).map(Errors.apply)
+
+    implicit val semigroup: Semigroup[Validation.Errors] = new Semigroup[Validation.Errors] {
+      override def combine(x: Errors, y: Errors): Errors = Errors(x.toNem |+| y.toNem)
+    }
   }
 
   def ask[A]: Validation[A, A] = Lift(identity)

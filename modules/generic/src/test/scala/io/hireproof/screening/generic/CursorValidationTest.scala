@@ -47,7 +47,7 @@ final class CursorValidationTest extends FunSuite {
     assertEquals(
       obtained = validation.run(User(age = 12, User.Address(""))),
       expected = Validated.invalid(
-        Cursor.Errors.ofError(
+        Validation.Errors.ofError(
           __ / "age" -> Validation.Error.Number.GreaterThan(equal = true, reference = 18, actual = 12),
           __ / "address" / "city" -> Validation.Error.Text.AtLeast(equal = false, reference = 0, actual = 0)
         )
@@ -74,7 +74,7 @@ final class CursorValidationTest extends FunSuite {
     assertEquals(
       obtained = validation.run(User(Some(""))),
       expected = Validated.invalid(
-        Cursor.Errors.oneNel(
+        Validation.Errors.oneNel(
           __ / "name",
           Validation.Error.Text.AtLeast(equal = false, reference = 0, actual = 0)
         )
@@ -102,14 +102,14 @@ final class CursorValidationTest extends FunSuite {
     assertEquals(
       obtained = validation.run(Users(Nil)),
       expected = Validated.invalid(
-        Cursor.Errors.oneNel(__ / "names", Validation.Error.Collection.AtLeast(equal = true, 1, 0))
+        Validation.Errors.oneNel(__ / "names", Validation.Error.Collection.AtLeast(equal = true, 1, 0))
       )
     )
 
     assertEquals(
       obtained = validation.run(Users(List("", "foo", ""))),
       expected = Validated.invalid(
-        Cursor.Errors.ofError(
+        Validation.Errors.ofError(
           (__ / "names" / 0) -> Validation.Error.Text.AtLeast(equal = false, 0, 0),
           (__ / "names" / 2) -> Validation.Error.Text.AtLeast(equal = false, 0, 0)
         )
@@ -142,7 +142,7 @@ final class CursorValidationTest extends FunSuite {
     }
 
     val validation: CursorValidation[User, Reference] = CursorValidation.oneOf {
-      case User.Admin(name)  => "admin" -> Reference.validation.run(s"$name@inspector").leftMap(Cursor.Errors.root)
+      case User.Admin(name)  => "admin" -> Reference.validation.run(s"$name@inspector").leftMap(Validation.Errors.root)
       case user: User.Member => "member" -> User.Member.validation.run(user).map(_._1)
       case User.Guest        => "guest" -> Validated.valid(Reference("unknown"))
     }

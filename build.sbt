@@ -74,4 +74,4 @@ lazy val jsonCirce = module(identifier = Some("json-circe"))
       if (scalaVersion.value == Version.Scala213) "-Ypatmat-exhaust-depth" :: "off" :: Nil else Nil
     }
   )
-  .dependsOn(generic % "compile->compile;test->test")
+  .dependsOn(core % "compile->compile;test->test")
