@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.0.4
+
+_2022-01-15_
+
+* Remove `ValidatingDecoder`
+* Move `Selection` class into `core` module
+* Check `Validation` `Arrow` laws
+* Upgrade to sbt-ci-release 1.5.10
+* Upgrade to sbt-houserules 0.3.19
+
 ## 0.0.3
 
 _2022-01-12_
