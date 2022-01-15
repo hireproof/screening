@@ -204,9 +204,6 @@ trait CirceInstances {
       case Left(failure) => Json.obj(Keys.Type := "failure", "message" := failure)
     }
 
-  implicit val encoderInspectorValidatingDecoderErrors: Encoder[ValidatingDecoder.Errors] =
-    Encoder[Map[List[CursorOp], Either[String, NonEmptyList[Validation.Error]]]].contramap(_.toMap)
-
   implicit val keyEncoderInspectorSelectionHistory: KeyEncoder[Selection.History] = KeyEncoder.instance(_.toJsonPath)
 
   implicit val keyDecoderInspectorSelectionHistory: KeyDecoder[Selection.History] =
