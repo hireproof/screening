@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.0.6
+
+_2022-01-18_
+
+* Add UUID parsing rule
+* Disable scalajs platform for root module
+
 ## 0.0.5
 
 _2022-01-16_
