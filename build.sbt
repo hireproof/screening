@@ -11,13 +11,15 @@ val Version = new {
   val ScalaJavaTime = "2.3.0"
 }
 
-def module(identifier: Option[String]): CrossProject =
-  CrossProject(identifier.getOrElse("root"), file(identifier.fold(".")("modules/" + _)))(JVMPlatform, JSPlatform)
+def module(identifier: Option[String]): CrossProject = {
+  val platforms = JVMPlatform :: identifier.map(_ => JSPlatform).toList
+  CrossProject(identifier.getOrElse("root"), file(identifier.fold(".")("modules/" + _)))(platforms: _*)
     .crossType(CrossType.Pure)
     .build()
     .settings(
       name := "screening" + identifier.fold("")("-" + _)
     )
+}
 
 inThisBuild(
   Def.settings(

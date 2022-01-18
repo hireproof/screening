@@ -18,9 +18,8 @@ sealed abstract class Cursor[+F[+_], +A] { self =>
 
   def andThen[T](validation: CursorValidation[A, T]): Cursor[F, T]
 
-  final def andThen[T](f: Cursor.Root[A] => Validated[Validation.Errors, T]): Cursor[F, T] = andThen(
-    CursorValidation(f)
-  )
+  final def andThen[T](f: Cursor.Root[A] => Validated[Validation.Errors, T]): Cursor[F, T] =
+    andThen(CursorValidation(f))
 
   def validate[T](validation: Validation[A, T]): Cursor[F, T]
 
