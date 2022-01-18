@@ -3,6 +3,7 @@ package io.hireproof.screening
 import cats.{Eq, Show}
 
 import java.time._
+import java.util.UUID
 import scala.concurrent.duration.FiniteDuration
 import scala.util.matching.Regex
 
@@ -102,6 +103,8 @@ object validations {
     val long: Validation[String, Long] = Validation.Parsing.Long
 
     val short: Validation[String, Short] = Validation.Parsing.Short
+
+    val uuid: Validation[String, UUID] = Validation.Parsing.Uuid
   }
 
   object text {

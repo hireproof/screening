@@ -187,6 +187,7 @@ object Validation {
       case object Int extends Value
       case object Long extends Value
       case object Short extends Value
+      case object Uuid extends Value
     }
 
     case object BigDecimal extends Parsing(Validation.Parsing.Value.BigDecimal, parseBigDecimal)
@@ -197,6 +198,7 @@ object Validation {
     case object Int extends Parsing(Validation.Parsing.Value.Int, _.toIntOption)
     case object Long extends Parsing(Validation.Parsing.Value.Long, _.toLongOption)
     case object Short extends Parsing(Validation.Parsing.Value.Short, _.toShortOption)
+    case object Uuid extends Parsing(Validation.Parsing.Value.Uuid, parseUuid)
   }
 
   sealed abstract class Text extends Validation[String, Unit]

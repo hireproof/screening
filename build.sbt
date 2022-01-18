@@ -16,9 +16,7 @@ def module(identifier: Option[String]): CrossProject = {
   CrossProject(identifier.getOrElse("root"), file(identifier.fold(".")("modules/" + _)))(platforms: _*)
     .crossType(CrossType.Pure)
     .build()
-    .settings(
-      name := "screening" + identifier.fold("")("-" + _)
-    )
+    .settings(name := "screening" + identifier.fold("")("-" + _))
 }
 
 inThisBuild(

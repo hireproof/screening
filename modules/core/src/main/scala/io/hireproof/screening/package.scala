@@ -5,6 +5,7 @@ import cats.syntax.all._
 
 import java.time.Instant
 import java.time.format.DateTimeParseException
+import java.util.UUID
 
 package object screening {
   val __ : Selection.History = Selection.History.Root
@@ -26,4 +27,8 @@ package object screening {
   private[screening] def parseInstant(value: String): Option[Instant] =
     try { Instant.parse(value).some }
     catch { case _: DateTimeParseException => none }
+
+  private[screening] def parseUuid(value: String): Option[UUID] =
+    try { UUID.fromString(value).some }
+    catch { case _: IllegalArgumentException => none }
 }

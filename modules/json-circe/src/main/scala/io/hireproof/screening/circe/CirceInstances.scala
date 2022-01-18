@@ -83,6 +83,7 @@ trait CirceInstances {
     case Validation.Parsing.Value.Int        => "int"
     case Validation.Parsing.Value.Long       => "long"
     case Validation.Parsing.Value.Short      => "short"
+    case Validation.Parsing.Value.Uuid       => "uuid"
   }
 
   private val parsingValueFromString: String => Option[Validation.Parsing.Value] = PartialFunction.condOpt(_) {
@@ -94,6 +95,7 @@ trait CirceInstances {
     case "int"        => Validation.Parsing.Value.Int
     case "long"       => Validation.Parsing.Value.Long
     case "short"      => Validation.Parsing.Value.Short
+    case "uuid"       => Validation.Parsing.Value.Uuid
   }
 
   implicit private val decoderDuration: Decoder[FiniteDuration] = Decoder.instance { cursor =>
