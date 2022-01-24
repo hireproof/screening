@@ -354,25 +354,6 @@ object Validation {
   sealed abstract class Error extends Product with Serializable
 
   object Error {
-    final case class Not(error: Error) extends Error
-
-    object Not {
-      def apply(error: Error): Error = error match {
-        case Not(error)                                   => error
-        case Collection.AtLeast(equal, reference, actual) => Collection.AtMost(!equal, reference, actual)
-        case Collection.AtMost(equal, reference, actual)  => Collection.AtLeast(!equal, reference, actual)
-        case Date.After(equal, reference, actual)         => Date.Before(!equal, reference, actual)
-        case Date.Before(equal, reference, actual)        => Date.After(!equal, reference, actual)
-        case Duration.AtLeast(equal, reference, actual)   => Duration.AtMost(!equal, reference, actual)
-        case Duration.AtMost(equal, reference, actual)    => Duration.AtLeast(!equal, reference, actual)
-        case Number.GreaterThan(equal, reference, actual) => Number.LessThan(!equal, reference, actual)
-        case Number.LessThan(equal, reference, actual)    => Number.GreaterThan(!equal, reference, actual)
-        case Text.AtLeast(equal, reference, actual)       => Text.AtMost(!equal, reference, actual)
-        case Text.AtMost(equal, reference, actual)        => Text.AtLeast(!equal, reference, actual)
-        case error                                        => new Not(error)
-      }
-    }
-
     sealed abstract class Collection extends Error
 
     object Collection {
@@ -399,7 +380,28 @@ object Validation {
       final case class Exactly(reference: FiniteDuration, actual: FiniteDuration) extends Duration
     }
 
+    final case class Invalid(reference: Option[String], actual: String) extends Error
+
     final case class Mapping(references: Option[Set[String]], actual: String) extends Error
+
+    final case class Not(error: Error) extends Error
+
+    object Not {
+      def apply(error: Error): Error = error match {
+        case Not(error)                                   => error
+        case Collection.AtLeast(equal, reference, actual) => Collection.AtMost(!equal, reference, actual)
+        case Collection.AtMost(equal, reference, actual)  => Collection.AtLeast(!equal, reference, actual)
+        case Date.After(equal, reference, actual)         => Date.Before(!equal, reference, actual)
+        case Date.Before(equal, reference, actual)        => Date.After(!equal, reference, actual)
+        case Duration.AtLeast(equal, reference, actual)   => Duration.AtMost(!equal, reference, actual)
+        case Duration.AtMost(equal, reference, actual)    => Duration.AtLeast(!equal, reference, actual)
+        case Number.GreaterThan(equal, reference, actual) => Number.LessThan(!equal, reference, actual)
+        case Number.LessThan(equal, reference, actual)    => Number.GreaterThan(!equal, reference, actual)
+        case Text.AtLeast(equal, reference, actual)       => Text.AtMost(!equal, reference, actual)
+        case Text.AtMost(equal, reference, actual)        => Text.AtLeast(!equal, reference, actual)
+        case error                                        => new Not(error)
+      }
+    }
 
     sealed abstract class Optional extends Error
 
