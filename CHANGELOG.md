@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.0.7
+
+_2022-01-24_
+
+* Add `Validation.Error.Invalid`
+
 ## 0.0.6
 
 _2022-01-18_
