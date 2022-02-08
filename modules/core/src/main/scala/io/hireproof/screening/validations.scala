@@ -1,6 +1,6 @@
 package io.hireproof.screening
 
-import cats.{Eq, Show}
+import cats.{Eq, Show, Traverse, UnorderedFoldable}
 
 import java.time._
 import java.util.UUID
@@ -11,20 +11,20 @@ object validations {
   def lift[I, O](f: I => O): Validation[I, O] = Validation.Lift(f)
 
   object collection {
-    def atLeast[F[X] <: Iterable[X], A](reference: Int, equal: Boolean = true): Validation[F[A], Unit] =
+    def atLeast[F[_]: UnorderedFoldable, A](reference: Long, equal: Boolean = true): Validation[F[A], Unit] =
       Validation.Collection.AtLeast(equal, reference)
 
-    def atMost[F[X] <: Iterable[X], A](reference: Int, equal: Boolean = true): Validation[F[A], Unit] =
+    def atMost[F[_]: UnorderedFoldable, A](reference: Long, equal: Boolean = true): Validation[F[A], Unit] =
       Validation.Collection.AtMost(equal, reference)
 
-    def contains[A: Eq: Show](reference: A): Validation[Seq[A], Unit] =
+    def contains[F[_]: Traverse, A: Eq: Show](reference: A): Validation[F[A], Unit] =
       Validation.Collection.Contains(reference)
 
-    def empty[F[a] <: Iterable[a], A]: Validation[Iterable[_], Unit] = atMost(reference = 0)
+    def empty[F[_]: UnorderedFoldable, A]: Validation[F[A], Unit] = atMost(reference = 0)
 
-    def nonEmpty[F[a] <: Iterable[a], A]: Validation[F[A], Unit] = Validation.Not(empty)
+    def nonEmpty[F[_]: UnorderedFoldable, A]: Validation[F[A], Unit] = Validation.Not(empty)
 
-    def exactly(expected: Int): Validation[Iterable[_], Unit] =
+    def exactly[F[_]: UnorderedFoldable, A](expected: Long): Validation[F[A], Unit] =
       (atLeast(expected, equal = true) and atMost(expected, equal = true)).modifyError {
         case Validation.Error.Collection.AtLeast(_, reference, actual) =>
           Validation.Error.Collection.Exactly(reference, actual)
@@ -58,17 +58,15 @@ object validations {
   }
 
   object mapping {
-    def apply[I, O](
+    def apply[I: Show, O](
         f: I => Option[O],
-        references: Option[Set[I]] = None,
-        render: I => String = (i: I) => i.toString
-    ): Validation[I, O] = Validation.Mapping(f, references, render)
+        references: Option[Set[I]] = None
+    ): Validation[I, O] = Validation.Mapping(f, references)
 
-    def partial[I, O](
+    def partial[I: Show, O](
         pf: PartialFunction[I, O],
-        references: Option[Set[I]] = None,
-        render: I => String = (i: I) => i.toString
-    ): Validation[I, O] = Validation.Mapping(pf.lift, references, render)
+        references: Option[Set[I]] = None
+    ): Validation[I, O] = Validation.Mapping(pf.lift, references)
   }
 
   object number {
@@ -135,6 +133,6 @@ object validations {
 
     def matches(regex: Regex): Validation[String, Unit] = Validation.Text.Matches(regex)
 
-    val required: Validation[String, String] = trim.andThen(nonEmpty.tap)
+    val required: Validation[String, String] = trim.andThen(nonEmpty.tap).normalize
   }
 }

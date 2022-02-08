@@ -7,52 +7,52 @@ import java.time._
 
 final class ValidationTest extends FunSuite {
   test("collection.atLeast") {
-    assert(collection.atLeast(reference = 1).run(List(1, 2, 3)).isValid)
-    assert(collection.atLeast(reference = 3).run(List(1, 2, 3)).isValid)
+    assert(collection.atLeast[List, Int](reference = 1).run(List(1, 2, 3)).isValid)
+    assert(collection.atLeast[List, Int](reference = 3).run(List(1, 2, 3)).isValid)
     assertEquals(
-      obtained = collection.atLeast(reference = 3).run(List(1)).error,
+      obtained = collection.atLeast[List, Int](reference = 3).run(List(1)).error,
       expected = Some(Validation.Error.Collection.AtLeast(equal = true, reference = 3, actual = 1))
     )
   }
 
   test("collection.atMost") {
-    assert(collection.atMost(reference = 3).run(List(1)).isValid)
-    assert(collection.atMost(reference = 3).run(List(1, 2, 3)).isValid)
+    assert(collection.atMost[List, Int](reference = 3).run(List(1)).isValid)
+    assert(collection.atMost[List, Int](reference = 3).run(List(1, 2, 3)).isValid)
     assertEquals(
-      obtained = collection.atMost(reference = 1).run(List(1, 2, 3)).error,
+      obtained = collection.atMost[List, Int](reference = 1).run(List(1, 2, 3)).error,
       expected = Some(Validation.Error.Collection.AtMost(equal = true, reference = 1, actual = 3))
     )
   }
 
   test("collection.isEmpty") {
-    assert(collection.empty.run(Nil).isValid)
+    assert(collection.empty[List, Int].run(Nil).isValid)
     assertEquals(
-      obtained = collection.empty.run(List(1, 2, 3)).error,
+      obtained = collection.empty[List, Int].run(List(1, 2, 3)).error,
       expected = Some(Validation.Error.Collection.AtMost(equal = true, reference = 0, actual = 3))
     )
   }
 
   test("collection.nonEmpty") {
-    assert(collection.nonEmpty.run(List(1, 2, 3)).isValid)
+    assert(collection.nonEmpty[List, Int].run(List(1, 2, 3)).isValid)
     assertEquals(
-      obtained = collection.nonEmpty.run(Nil).error,
+      obtained = collection.nonEmpty[List, Int].run(Nil).error,
       expected = Some(Validation.Error.Not(Validation.Error.Collection.AtMost(equal = true, reference = 0, actual = 0)))
     )
   }
 
   test("collection.exactly") {
-    assert(collection.exactly(expected = 3).run(List(1, 2, 3)).isValid)
-    assert(collection.exactly(expected = 0).run(Nil).isValid)
+    assert(collection.exactly[List, Int](expected = 3).run(List(1, 2, 3)).isValid)
+    assert(collection.exactly[List, Int](expected = 0).run(Nil).isValid)
     assertEquals(
-      obtained = collection.exactly(expected = 3).run(List(1)).error,
+      obtained = collection.exactly[List, Int](expected = 3).run(List(1)).error,
       expected = Some(Validation.Error.Collection.Exactly(reference = 3, actual = 1))
     )
   }
 
   test("collection.contains") {
-    assert(collection.contains(reference = "foobar").run(List("foo", "foobar", "bar")).isValid)
+    assert(collection.contains[List, String](reference = "foobar").run(List("foo", "foobar", "bar")).isValid)
     assertEquals(
-      obtained = collection.contains(reference = "foobar").run(List("foo", "bar")).error,
+      obtained = collection.contains[List, String](reference = "foobar").run(List("foo", "bar")).error,
       expected = Some(Validation.Error.Collection.Contains(reference = "foobar", actual = List("foo", "bar")))
     )
   }
@@ -280,6 +280,16 @@ final class ValidationTest extends FunSuite {
     assertEquals(
       obtained = text.email.run("foobar").error,
       expected = Some(Validation.Error.Text.Email("foobar"))
+    )
+  }
+
+  test("toDebugString") {
+    val validation = text.required
+      .andThen(text.atLeast(reference = 3, equal = false) and text.atMost(reference = 10, equal = true))
+
+    assertEquals(
+      obtained = validation.toDebugString,
+      expected = "(a.length > 0).andThen(b => (b.length > 3) && (b.length <= 10))"
     )
   }
 }

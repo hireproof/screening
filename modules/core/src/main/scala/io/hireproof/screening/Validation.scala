@@ -3,7 +3,9 @@ package io.hireproof.screening
 import cats.arrow.Arrow
 import cats.data.{NonEmptyList, NonEmptyMap, Validated, ValidatedNel}
 import cats.syntax.all._
-import cats.{Eq, Semigroup, Show}
+import cats.{Eq, Semigroup, Show, Traverse, UnorderedFoldable}
+import io.hireproof.screening.Validation.Number.Operator
+import io.hireproof.screening.Validation.Parsing.Value
 
 import java.time.Instant
 import scala.Numeric.Implicits._
@@ -32,14 +34,20 @@ sealed abstract class Validation[-I, +O] {
   final def withErrors(errors: NonEmptyList[Validation.Error]): Validation[I, O] = modifyErrors(_ => errors)
 
   final def withError(error: Validation.Error): Validation[I, O] = withErrors(NonEmptyList.one(error))
+
+  final def normalize: Validation[I, O] = Normalization.apply(this).getOrElse(this)
+
+  protected def toDebugString(symbol: Symbol): String
+
+  final def toDebugString: String = normalize.toDebugString(Symbol.Default)
 }
 
 object Validation {
-  sealed abstract class Collection[F[_], A] extends Validation[F[A], Unit]
+  sealed abstract class Collection[I] extends Validation[I, Unit]
 
   object Collection {
-    final case class AtLeast[F[X] <: Iterable[X], A](equal: Boolean, reference: Int) extends Collection[F, A] {
-      def error(actual: Int): Validation.Error = Validation.Error.Collection.AtLeast(equal, reference, actual)
+    final case class AtLeast[F[_]: UnorderedFoldable, A](equal: Boolean, reference: Long) extends Collection[F[A]] {
+      def error(actual: Long): Validation.Error = Validation.Error.Collection.AtLeast(equal, reference, actual)
 
       override def errors(input: F[A]): List[Error] = List(error(input.size))
 
@@ -48,10 +56,17 @@ object Validation {
         val check = if (equal) size >= reference else size > reference
         Validated.cond(check, (), NonEmptyList.one(error(size)))
       }
+
+      def negate: Validation.Collection[F[A]] = AtMost(!equal, reference)
+
+      override protected def toDebugString(symbol: Symbol): String = {
+        val operator = if (equal) ">=" else ">"
+        s"$symbol.length $operator $reference"
+      }
     }
 
-    final case class AtMost[F[X] <: Iterable[X], A](equal: Boolean, reference: Int) extends Collection[F, A] {
-      def error(actual: Int): Validation.Error = Validation.Error.Collection.AtMost(equal, reference, actual)
+    final case class AtMost[F[_]: UnorderedFoldable, A](equal: Boolean, reference: Long) extends Collection[F[A]] {
+      def error(actual: Long): Validation.Error = Validation.Error.Collection.AtMost(equal, reference, actual)
 
       override def errors(input: F[A]): List[Error] = List(error(input.size))
 
@@ -60,16 +75,25 @@ object Validation {
         val check = if (equal) size <= reference else size < reference
         Validated.cond(check, (), NonEmptyList.one(error(size)))
       }
+
+      def negate: Validation.Collection[F[A]] = AtLeast(!equal, reference)
+
+      override protected def toDebugString(symbol: Symbol): String = {
+        val operator = if (equal) "<=" else "<"
+        s"$symbol.length $operator $reference"
+      }
     }
 
-    final case class Contains[A: Eq: Show](reference: A) extends Collection[Seq, A] {
-      def error(input: Seq[A]): Validation.Error =
-        Validation.Error.Collection.Contains(reference.show, input.map(_.show))
+    final case class Contains[F[_]: Traverse, A: Eq: Show](reference: A) extends Collection[F[A]] {
+      def error(input: F[A]): Validation.Error =
+        Validation.Error.Collection.Contains(reference.show, input.map(_.show).toList)
 
-      override def errors(input: Seq[A]): List[Validation.Error] = List(error(input))
+      override def errors(input: F[A]): List[Validation.Error] = List(error(input))
 
-      override def run(input: Seq[A]): Validated[NonEmptyList[Validation.Error], Unit] =
+      override def run(input: F[A]): Validated[NonEmptyList[Validation.Error], Unit] =
         Validated.cond(input.contains_(reference), (), NonEmptyList.one(error(input)))
+
+      override protected def toDebugString(symbol: Symbol): String = show"$symbol.contains($reference)"
     }
   }
 
@@ -86,6 +110,11 @@ object Validation {
         val check = if (equal) compare <= 0 else compare < 0
         Validated.condNel(check, (), error(input))
       }
+
+      override protected def toDebugString(symbol: Symbol): String = {
+        val operator = if (equal) ">=" else ">"
+        s"$symbol $operator $reference"
+      }
     }
 
     final case class Before(equal: Boolean, reference: Instant) extends Date {
@@ -97,6 +126,11 @@ object Validation {
         val compare = reference.compareTo(input)
         val check = if (equal) compare >= 0 else compare > 0
         Validated.condNel(check, (), error(input))
+      }
+
+      override protected def toDebugString(symbol: Symbol): String = {
+        val operator = if (equal) "<=" else "<"
+        s"$symbol $operator $reference"
       }
     }
   }
@@ -114,6 +148,11 @@ object Validation {
         val check = if (equal) compare <= 0 else compare < 0
         Validated.condNel(check, (), error(input))
       }
+
+      override protected def toDebugString(symbol: Symbol): String = {
+        val operator = if (equal) ">=" else ">"
+        s"$symbol $operator $reference"
+      }
     }
 
     final case class AtMost(equal: Boolean, reference: FiniteDuration) extends Duration {
@@ -125,6 +164,11 @@ object Validation {
         val compare = reference.compareTo(input)
         val check = if (equal) compare >= 0 else compare > 0
         Validated.condNel(check, (), error(input))
+      }
+
+      override protected def toDebugString(symbol: Symbol): String = {
+        val operator = if (equal) "<=" else "<"
+        s"$symbol $operator $reference"
       }
     }
   }
@@ -153,6 +197,18 @@ object Validation {
 
       Validated.cond(valid, (), NonEmptyList.one(error(input)))
     }
+
+    override protected def toDebugString(symbol: Symbol): String = {
+      val operator = this.operator match {
+        case Operator.Equal              => "="
+        case Operator.GreaterThan(true)  => ">="
+        case Operator.GreaterThan(false) => ">"
+        case Operator.LessThan(true)     => "<="
+        case Operator.LessThan(false)    => "<"
+      }
+
+      s"$symbol $operator $reference"
+    }
   }
 
   object Number {
@@ -173,6 +229,22 @@ object Validation {
 
     final override def run(input: String): Validated[NonEmptyList[Validation.Error], O] =
       parse(input).toValidNel(error(input))
+
+    final override protected def toDebugString(symbol: Symbol): String = {
+      val name = value match {
+        case Value.BigDecimal => "BigDecimal"
+        case Value.BigInt     => "BigInt"
+        case Value.Instant    => "Instant"
+        case Value.Double     => "Double"
+        case Value.Float      => "Float"
+        case Value.Int        => "Int"
+        case Value.Long       => "Long"
+        case Value.Short      => "Short"
+        case Value.Uuid       => "UUID"
+      }
+
+      s"$symbol.parse($name)"
+    }
   }
 
   object Parsing {
@@ -201,10 +273,10 @@ object Validation {
     case object Uuid extends Parsing(Validation.Parsing.Value.Uuid, parseUuid)
   }
 
-  sealed abstract class Text extends Validation[String, Unit]
+  sealed abstract class Text[O] extends Validation[String, O]
 
   object Text {
-    final case class AtLeast(equal: Boolean, reference: Int) extends Text {
+    final case class AtLeast(equal: Boolean, reference: Int) extends Text[Unit] {
       def error(length: Int): Validation.Error = Validation.Error.Text.AtLeast(equal, reference, length)
 
       override def errors(input: String): List[Validation.Error] = List(error(input.length))
@@ -214,9 +286,14 @@ object Validation {
         val check = if (equal) length >= reference else length > reference
         Validated.cond(check, (), NonEmptyList.one(error(length)))
       }
+
+      override protected def toDebugString(symbol: Symbol): String = {
+        val operator = if (equal) ">=" else ">"
+        s"$symbol.length $operator $reference"
+      }
     }
 
-    final case class AtMost(equal: Boolean, reference: Int) extends Text {
+    final case class AtMost(equal: Boolean, reference: Int) extends Text[Unit] {
       def error(length: Int): Validation.Error = Validation.Error.Text.AtMost(equal, reference, length)
 
       override def errors(input: String): List[Validation.Error] = List(error(input.length))
@@ -226,34 +303,45 @@ object Validation {
         val check = if (equal) length <= reference else length < reference
         Validated.cond(check, (), NonEmptyList.one(error(length)))
       }
+
+      override protected def toDebugString(symbol: Symbol): String = {
+        val operator = if (equal) "<=" else "<"
+        s"$symbol.length $operator $reference"
+      }
     }
 
-    final case class Equal(reference: String) extends Text {
+    final case class Equal(reference: String) extends Text[Unit] {
       def error(input: String): Validation.Error = Validation.Error.Text.Equal(reference, input)
 
       override def errors(input: String): List[Error] = List(error(input))
 
       override def run(input: String): Validated[NonEmptyList[Error], Unit] =
         Validated.cond(reference == input, (), NonEmptyList.one(error(input)))
+
+      override protected def toDebugString(symbol: Symbol): String = s"$symbol = $reference"
     }
 
-    final case class Matches(regex: Regex) extends Text {
+    final case class Matches(regex: Regex) extends Text[Unit] {
       def error(input: String): Validation.Error = Validation.Error.Text.Matches(regex, input)
 
       override def errors(input: String): List[Validation.Error] = List(error(input))
 
       override def run(input: String): Validated[NonEmptyList[Validation.Error], Unit] =
         Validated.cond(regex.matches(input), (), NonEmptyList.one(error(input)))
+
+      override protected def toDebugString(symbol: Symbol): String = s"$symbol.matches($regex)"
     }
   }
 
-  final case class Mapping[I, O](f: I => Option[O], references: Option[Set[I]], render: I => String)
-      extends Validation[I, O] {
+  final case class Mapping[I: Show, O](f: I => Option[O], references: Option[Set[I]]) extends Validation[I, O] {
     override def run(input: I): ValidatedNel[Error, O] = Validated.fromOption(f(input), NonEmptyList.one(error(input)))
 
     override def errors(input: I): List[Error] = List(error(input))
 
-    def error(input: I): Error = Error.Mapping(references.map(_.map(render)), render(input))
+    def error(input: I): Error = Error.Mapping(references.map(_.map(_.show)), input.show)
+
+    override protected def toDebugString(symbol: Symbol): String =
+      s"$symbol = ${references.map(_.map(_.show).mkString("|")).getOrElse("<?>")}"
   }
 
   object Optional {
@@ -264,6 +352,8 @@ object Validation {
       }
 
       override def errors(input: I): List[Error] = List(Error.Optional.Required)
+
+      override protected def toDebugString(symbol: Symbol): String = s"$symbol.isDefined"
     }
   }
 
@@ -274,6 +364,14 @@ object Validation {
     }
 
     override def run(input: I): ValidatedNel[Validation.Error, O] = left.run(input).andThen(right.run)
+
+    override protected def toDebugString(symbol: Symbol): String = (left, right) match {
+      case (Lift(_), _) => right.toDebugString(symbol)
+      case (_, Lift(_)) => left.toDebugString(symbol)
+      case _ =>
+        val next = symbol.next
+        s"(${left.toDebugString(symbol)}).andThen($next => ${right.toDebugString(next)})"
+    }
   }
 
   final case class And[I](left: Validation[I, Unit], right: Validation[I, Unit]) extends Validation[I, Unit] {
@@ -285,6 +383,9 @@ object Validation {
       case (_, right @ Validated.Invalid(_))                   => right
       case (left @ Validated.Valid(_), Validated.Valid(_))     => left
     }
+
+    override protected def toDebugString(symbol: Symbol): String =
+      s"(${left.toDebugString(symbol)}) && (${right.toDebugString(symbol)})"
   }
 
   final case class Or[I, O](left: Validation[I, O], right: Validation[I, O]) extends Validation[I, O] {
@@ -295,6 +396,9 @@ object Validation {
       case (_, right @ Validated.Valid(_))                     => right
       case (Validated.Invalid(left), Validated.Invalid(right)) => Validated.invalid(left concatNel right)
     }
+
+    override protected def toDebugString(symbol: Symbol): String =
+      s"(${left.toDebugString(symbol)}) || (${right.toDebugString(symbol)})"
   }
 
   final case class Not[I](validation: Validation[I, Unit]) extends Validation[I, Unit] {
@@ -308,12 +412,16 @@ object Validation {
           .leftMap(_.map(Validation.Error.Not.apply))
       case Validated.Invalid(_) => Validated.valid(())
     }
+
+    override protected def toDebugString(symbol: Symbol): String = s"!(${validation.toDebugString(symbol)})"
   }
 
   final case class Lift[I, O](f: I => O) extends Validation[I, O] {
     override def errors(input: I): List[Validation.Error] = Nil
 
     override def run(input: I): ValidatedNel[Validation.Error, O] = Validated.valid(f(input))
+
+    override protected def toDebugString(symbol: Symbol): String = "<f>"
   }
 
   final case class First[I, X, O](validation: Validation[I, O]) extends Validation[(I, X), (O, X)] {
@@ -321,12 +429,16 @@ object Validation {
 
     override def run(input: (I, X)): ValidatedNel[Validation.Error, (O, X)] =
       validation.run(input._1).map((_, input._2))
+
+    override protected def toDebugString(symbol: Symbol): String = validation.toDebugString(symbol)
   }
 
   final case class Invalid(errors: NonEmptyList[Validation.Error]) extends Validation[Any, Nothing] {
     override def run(input: Any): ValidatedNel[Error, Nothing] = Validated.invalid(errors)
 
     override def errors(input: Any): List[Error] = errors.toList
+
+    override protected def toDebugString(symbol: Symbol): String = "<invalid>"
   }
 
   final case class Modify[I, O](
@@ -336,6 +448,8 @@ object Validation {
     override def errors(input: I): List[Validation.Error] = validation.errors(input).toNel.map(f(_).toList).orEmpty
 
     override def run(input: I): Validated[NonEmptyList[Validation.Error], O] = validation.run(input).leftMap(f)
+
+    override protected def toDebugString(symbol: Symbol): String = validation.toDebugString(symbol)
   }
 
   implicit final class Ops[I, O](val validation: Validation[I, O]) extends AnyVal {
@@ -357,10 +471,10 @@ object Validation {
     sealed abstract class Collection extends Error
 
     object Collection {
-      final case class AtLeast(equal: Boolean, reference: Int, actual: Int) extends Collection
-      final case class AtMost(equal: Boolean, reference: Int, actual: Int) extends Collection
-      final case class Contains(reference: String, actual: Seq[String]) extends Collection
-      final case class Exactly(reference: Int, actual: Int) extends Collection
+      final case class AtLeast(equal: Boolean, reference: Long, actual: Long) extends Collection
+      final case class AtMost(equal: Boolean, reference: Long, actual: Long) extends Collection
+      final case class Contains(reference: String, actual: List[String]) extends Collection
+      final case class Exactly(reference: Long, actual: Long) extends Collection
     }
 
     final case class Conflict(actual: String) extends Error
@@ -385,23 +499,6 @@ object Validation {
     final case class Mapping(references: Option[Set[String]], actual: String) extends Error
 
     final case class Not(error: Error) extends Error
-
-    object Not {
-      def apply(error: Error): Error = error match {
-        case Not(error)                                   => error
-        case Collection.AtLeast(equal, reference, actual) => Collection.AtMost(!equal, reference, actual)
-        case Collection.AtMost(equal, reference, actual)  => Collection.AtLeast(!equal, reference, actual)
-        case Date.After(equal, reference, actual)         => Date.Before(!equal, reference, actual)
-        case Date.Before(equal, reference, actual)        => Date.After(!equal, reference, actual)
-        case Duration.AtLeast(equal, reference, actual)   => Duration.AtMost(!equal, reference, actual)
-        case Duration.AtMost(equal, reference, actual)    => Duration.AtLeast(!equal, reference, actual)
-        case Number.GreaterThan(equal, reference, actual) => Number.LessThan(!equal, reference, actual)
-        case Number.LessThan(equal, reference, actual)    => Number.GreaterThan(!equal, reference, actual)
-        case Text.AtLeast(equal, reference, actual)       => Text.AtMost(!equal, reference, actual)
-        case Text.AtMost(equal, reference, actual)        => Text.AtLeast(!equal, reference, actual)
-        case error                                        => new Not(error)
-      }
-    }
 
     sealed abstract class Optional extends Error
 

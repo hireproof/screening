@@ -120,12 +120,12 @@ trait CirceInstances {
   implicit val decoderInspectorValidationError: Decoder[Validation.Error] = Decoder.instance { cursor =>
     (cursor.get[String](Keys.Type), cursor.get[Option[String]](Keys.Variant)).tupled.flatMap {
       // format: off
-      case (Types.Collection, Some(Variants.AtLeast)) => decoder.reference[Int, Int](cursor).map { case (reference, actual) => Validation.Error.Collection.AtLeast(equal = false, reference, actual) }
-      case (Types.Collection, Some(Variants.AtLeastEqual)) => decoder.reference[Int, Int](cursor).map { case (reference, actual) => Validation.Error.Collection.AtLeast(equal = true, reference, actual) }
-      case (Types.Collection, Some(Variants.AtMost)) => decoder.reference[Int, Int](cursor).map { case (reference, actual) => Validation.Error.Collection.AtMost(equal = false, reference, actual) }
-      case (Types.Collection, Some(Variants.AtMostEqual)) => decoder.reference[Int, Int](cursor).map { case (reference, actual) => Validation.Error.Collection.AtMost(equal = true, reference, actual) }
-      case (Types.Collection, Some(Variants.Contains)) => decoder.reference[String, Seq[String]](cursor).map { case (reference, actual) => Validation.Error.Collection.Contains(reference, actual) }
-      case (Types.Collection, Some(Variants.Exactly)) => decoder.reference[Int, Int](cursor).map { case (reference, actual) => Validation.Error.Collection.Exactly(reference,actual) }
+      case (Types.Collection, Some(Variants.AtLeast)) => decoder.reference[Long, Long](cursor).map { case (reference, actual) => Validation.Error.Collection.AtLeast(equal = false, reference, actual) }
+      case (Types.Collection, Some(Variants.AtLeastEqual)) => decoder.reference[Long, Long](cursor).map { case (reference, actual) => Validation.Error.Collection.AtLeast(equal = true, reference, actual) }
+      case (Types.Collection, Some(Variants.AtMost)) => decoder.reference[Long, Long](cursor).map { case (reference, actual) => Validation.Error.Collection.AtMost(equal = false, reference, actual) }
+      case (Types.Collection, Some(Variants.AtMostEqual)) => decoder.reference[Long, Long](cursor).map { case (reference, actual) => Validation.Error.Collection.AtMost(equal = true, reference, actual) }
+      case (Types.Collection, Some(Variants.Contains)) => decoder.reference[String, List[String]](cursor).map { case (reference, actual) => Validation.Error.Collection.Contains(reference, actual) }
+      case (Types.Collection, Some(Variants.Exactly)) => decoder.reference[Long, Long](cursor).map { case (reference, actual) => Validation.Error.Collection.Exactly(reference,actual) }
       case (Types.Conflict, None) => decoder[String](cursor).map(Validation.Error.Conflict.apply)
       case (Types.Date, Some(Variants.After)) => decoder.reference[Instant, Instant](cursor).map { case (reference, actual) => Validation.Error.Date.After(equal = false, reference, actual) }
       case (Types.Date, Some(Variants.AfterEqual)) => decoder.reference[Instant, Instant](cursor).map { case (reference, actual) => Validation.Error.Date.After(equal = true, reference, actual) }

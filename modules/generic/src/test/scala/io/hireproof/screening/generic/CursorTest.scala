@@ -166,7 +166,7 @@ final class CursorTest extends FunSuite {
     val expected = Cursor.Failure(
       Validation.Errors.oneNel(
         __ / "bars",
-        Validation.Error.Collection.AtMost(equal = true, reference = 1, actual = values.length)
+        Validation.Error.Collection.AtMost(equal = true, reference = 1, actual = values.length.toLong)
       )
     )
 
