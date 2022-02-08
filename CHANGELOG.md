@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.0.8
+
+_2022-02-08_
+
+* Add Validation debug printing
+* Update scala3 to 3.1.1 (#4)
+* Update sbt to 1.6.2 (#3)
+
 ## 0.0.7
 
 _2022-01-24_
