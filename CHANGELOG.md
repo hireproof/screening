@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.0.9
+
+_2022-02-09_
+
+* Always normalize validations before run
+
 ## 0.0.8
 
 _2022-02-08_
