@@ -36,7 +36,7 @@ final class ValidationTest extends FunSuite {
     assert(collection.nonEmpty[List, Int].run(List(1, 2, 3)).isValid)
     assertEquals(
       obtained = collection.nonEmpty[List, Int].run(Nil).error,
-      expected = Some(Validation.Error.Not(Validation.Error.Collection.AtMost(equal = true, reference = 0, actual = 0)))
+      expected = Some(Validation.Error.Collection.AtLeast(equal = false, reference = 0, actual = 0))
     )
   }
 
@@ -248,7 +248,7 @@ final class ValidationTest extends FunSuite {
     assert(text.nonEmpty.run("foobar").isValid)
     assertEquals(
       obtained = text.nonEmpty.run("").error,
-      expected = Some(Validation.Error.Not(Validation.Error.Text.AtMost(equal = true, reference = 0, actual = 0)))
+      expected = Some(Validation.Error.Text.AtLeast(equal = false, reference = 0, actual = 0))
     )
   }
 

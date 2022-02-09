@@ -15,7 +15,9 @@ import scala.concurrent.duration.FiniteDuration
 import scala.util.matching.Regex
 
 sealed abstract class Validation[-I, +O] {
-  def run(input: I): ValidatedNel[Validation.Error, O]
+  def runUnnormalized(input: I): ValidatedNel[Validation.Error, O]
+
+  def run(input: I): ValidatedNel[Validation.Error, O] = normalize.runUnnormalized(input)
 
   def errors(input: I): List[Validation.Error]
 
@@ -51,7 +53,7 @@ object Validation {
 
       override def errors(input: F[A]): List[Error] = List(error(input.size))
 
-      override def run(input: F[A]): ValidatedNel[Error, Unit] = {
+      override def runUnnormalized(input: F[A]): ValidatedNel[Error, Unit] = {
         val size = input.size
         val check = if (equal) size >= reference else size > reference
         Validated.cond(check, (), NonEmptyList.one(error(size)))
@@ -70,7 +72,7 @@ object Validation {
 
       override def errors(input: F[A]): List[Error] = List(error(input.size))
 
-      override def run(input: F[A]): ValidatedNel[Error, Unit] = {
+      override def runUnnormalized(input: F[A]): ValidatedNel[Error, Unit] = {
         val size = input.size
         val check = if (equal) size <= reference else size < reference
         Validated.cond(check, (), NonEmptyList.one(error(size)))
@@ -90,7 +92,7 @@ object Validation {
 
       override def errors(input: F[A]): List[Validation.Error] = List(error(input))
 
-      override def run(input: F[A]): Validated[NonEmptyList[Validation.Error], Unit] =
+      override def runUnnormalized(input: F[A]): Validated[NonEmptyList[Validation.Error], Unit] =
         Validated.cond(input.contains_(reference), (), NonEmptyList.one(error(input)))
 
       override protected def toDebugString(symbol: Symbol): String = show"$symbol.contains($reference)"
@@ -105,7 +107,7 @@ object Validation {
 
       override def errors(input: Instant): List[Error] = List(error(input))
 
-      override def run(input: Instant): ValidatedNel[Error, Unit] = {
+      override def runUnnormalized(input: Instant): ValidatedNel[Error, Unit] = {
         val compare = reference.compareTo(input)
         val check = if (equal) compare <= 0 else compare < 0
         Validated.condNel(check, (), error(input))
@@ -122,7 +124,7 @@ object Validation {
 
       override def errors(input: Instant): List[Error] = List(error(input))
 
-      override def run(input: Instant): ValidatedNel[Error, Unit] = {
+      override def runUnnormalized(input: Instant): ValidatedNel[Error, Unit] = {
         val compare = reference.compareTo(input)
         val check = if (equal) compare >= 0 else compare > 0
         Validated.condNel(check, (), error(input))
@@ -143,7 +145,7 @@ object Validation {
 
       override def errors(input: FiniteDuration): List[Error] = List(error(input))
 
-      override def run(input: FiniteDuration): ValidatedNel[Error, Unit] = {
+      override def runUnnormalized(input: FiniteDuration): ValidatedNel[Error, Unit] = {
         val compare = reference.compareTo(input)
         val check = if (equal) compare <= 0 else compare < 0
         Validated.condNel(check, (), error(input))
@@ -160,7 +162,7 @@ object Validation {
 
       override def errors(input: FiniteDuration): List[Error] = List(error(input))
 
-      override def run(input: FiniteDuration): ValidatedNel[Error, Unit] = {
+      override def runUnnormalized(input: FiniteDuration): ValidatedNel[Error, Unit] = {
         val compare = reference.compareTo(input)
         val check = if (equal) compare >= 0 else compare > 0
         Validated.condNel(check, (), error(input))
@@ -186,7 +188,7 @@ object Validation {
 
     override def errors(input: I): List[Validation.Error] = List(error(input))
 
-    override def run(input: I): ValidatedNel[Validation.Error, Unit] = {
+    override def runUnnormalized(input: I): ValidatedNel[Validation.Error, Unit] = {
       val valid = operator match {
         case Number.Operator.Equal              => (input - reference).abs <= delta
         case Number.Operator.GreaterThan(true)  => input >= reference
@@ -227,7 +229,7 @@ object Validation {
 
     final override def errors(input: String): List[Validation.Error] = List(error(input))
 
-    final override def run(input: String): Validated[NonEmptyList[Validation.Error], O] =
+    final override def runUnnormalized(input: String): Validated[NonEmptyList[Validation.Error], O] =
       parse(input).toValidNel(error(input))
 
     final override protected def toDebugString(symbol: Symbol): String = {
@@ -281,7 +283,7 @@ object Validation {
 
       override def errors(input: String): List[Validation.Error] = List(error(input.length))
 
-      override def run(input: String): Validated[NonEmptyList[Validation.Error], Unit] = {
+      override def runUnnormalized(input: String): Validated[NonEmptyList[Validation.Error], Unit] = {
         val length = input.length
         val check = if (equal) length >= reference else length > reference
         Validated.cond(check, (), NonEmptyList.one(error(length)))
@@ -298,7 +300,7 @@ object Validation {
 
       override def errors(input: String): List[Validation.Error] = List(error(input.length))
 
-      override def run(input: String): Validated[NonEmptyList[Validation.Error], Unit] = {
+      override def runUnnormalized(input: String): Validated[NonEmptyList[Validation.Error], Unit] = {
         val length = input.length
         val check = if (equal) length <= reference else length < reference
         Validated.cond(check, (), NonEmptyList.one(error(length)))
@@ -315,7 +317,7 @@ object Validation {
 
       override def errors(input: String): List[Error] = List(error(input))
 
-      override def run(input: String): Validated[NonEmptyList[Error], Unit] =
+      override def runUnnormalized(input: String): Validated[NonEmptyList[Error], Unit] =
         Validated.cond(reference == input, (), NonEmptyList.one(error(input)))
 
       override protected def toDebugString(symbol: Symbol): String = s"$symbol = $reference"
@@ -326,7 +328,7 @@ object Validation {
 
       override def errors(input: String): List[Validation.Error] = List(error(input))
 
-      override def run(input: String): Validated[NonEmptyList[Validation.Error], Unit] =
+      override def runUnnormalized(input: String): Validated[NonEmptyList[Validation.Error], Unit] =
         Validated.cond(regex.matches(input), (), NonEmptyList.one(error(input)))
 
       override protected def toDebugString(symbol: Symbol): String = s"$symbol.matches($regex)"
@@ -334,7 +336,8 @@ object Validation {
   }
 
   final case class Mapping[I: Show, O](f: I => Option[O], references: Option[Set[I]]) extends Validation[I, O] {
-    override def run(input: I): ValidatedNel[Error, O] = Validated.fromOption(f(input), NonEmptyList.one(error(input)))
+    override def runUnnormalized(input: I): ValidatedNel[Error, O] =
+      Validated.fromOption(f(input), NonEmptyList.one(error(input)))
 
     override def errors(input: I): List[Error] = List(error(input))
 
@@ -346,7 +349,7 @@ object Validation {
 
   object Optional {
     final case class Required[I, O](validation: Validation[I, Option[O]]) extends Validation[I, O] {
-      override def run(input: I): ValidatedNel[Error, O] = validation.run(input).andThen {
+      override def runUnnormalized(input: I): ValidatedNel[Error, O] = validation.run(input).andThen {
         case Some(value) => Validated.valid(value)
         case None        => Validated.invalidNel(Error.Optional.Required)
       }
@@ -363,7 +366,7 @@ object Validation {
       case Validated.Invalid(errors) => errors.toList
     }
 
-    override def run(input: I): ValidatedNel[Validation.Error, O] = left.run(input).andThen(right.run)
+    override def runUnnormalized(input: I): ValidatedNel[Validation.Error, O] = left.run(input).andThen(right.run)
 
     override protected def toDebugString(symbol: Symbol): String = (left, right) match {
       case (Lift(_), _) => right.toDebugString(symbol)
@@ -377,12 +380,13 @@ object Validation {
   final case class And[I](left: Validation[I, Unit], right: Validation[I, Unit]) extends Validation[I, Unit] {
     override def errors(input: I): List[Validation.Error] = left.errors(input) ++ right.errors(input)
 
-    override def run(input: I): ValidatedNel[Validation.Error, Unit] = (left.run(input), right.run(input)) match {
-      case (Validated.Invalid(left), Validated.Invalid(right)) => Validated.invalid(left concatNel right)
-      case (left @ Validated.Invalid(_), _)                    => left
-      case (_, right @ Validated.Invalid(_))                   => right
-      case (left @ Validated.Valid(_), Validated.Valid(_))     => left
-    }
+    override def runUnnormalized(input: I): ValidatedNel[Validation.Error, Unit] =
+      (left.run(input), right.run(input)) match {
+        case (Validated.Invalid(left), Validated.Invalid(right)) => Validated.invalid(left concatNel right)
+        case (left @ Validated.Invalid(_), _)                    => left
+        case (_, right @ Validated.Invalid(_))                   => right
+        case (left @ Validated.Valid(_), Validated.Valid(_))     => left
+      }
 
     override protected def toDebugString(symbol: Symbol): String =
       s"(${left.toDebugString(symbol)}) && (${right.toDebugString(symbol)})"
@@ -391,11 +395,12 @@ object Validation {
   final case class Or[I, O](left: Validation[I, O], right: Validation[I, O]) extends Validation[I, O] {
     override def errors(input: I): List[Validation.Error] = left.errors(input) ++ right.errors(input)
 
-    override def run(input: I): ValidatedNel[Validation.Error, O] = (left.run(input), right.run(input)) match {
-      case (left @ Validated.Valid(_), _)                      => left
-      case (_, right @ Validated.Valid(_))                     => right
-      case (Validated.Invalid(left), Validated.Invalid(right)) => Validated.invalid(left concatNel right)
-    }
+    override def runUnnormalized(input: I): ValidatedNel[Validation.Error, O] =
+      (left.run(input), right.run(input)) match {
+        case (left @ Validated.Valid(_), _)                      => left
+        case (_, right @ Validated.Valid(_))                     => right
+        case (Validated.Invalid(left), Validated.Invalid(right)) => Validated.invalid(left concatNel right)
+      }
 
     override protected def toDebugString(symbol: Symbol): String =
       s"(${left.toDebugString(symbol)}) || (${right.toDebugString(symbol)})"
@@ -404,7 +409,7 @@ object Validation {
   final case class Not[I](validation: Validation[I, Unit]) extends Validation[I, Unit] {
     override def errors(input: I): List[Validation.Error] = validation.errors(input).map(Validation.Error.Not.apply)
 
-    override def run(input: I): ValidatedNel[Validation.Error, Unit] = validation.run(input) match {
+    override def runUnnormalized(input: I): ValidatedNel[Validation.Error, Unit] = validation.run(input) match {
       case Validated.Valid(_) =>
         NonEmptyList
           .fromList(validation.errors(input))
@@ -419,7 +424,7 @@ object Validation {
   final case class Lift[I, O](f: I => O) extends Validation[I, O] {
     override def errors(input: I): List[Validation.Error] = Nil
 
-    override def run(input: I): ValidatedNel[Validation.Error, O] = Validated.valid(f(input))
+    override def runUnnormalized(input: I): ValidatedNel[Validation.Error, O] = Validated.valid(f(input))
 
     override protected def toDebugString(symbol: Symbol): String = "<f>"
   }
@@ -427,14 +432,14 @@ object Validation {
   final case class First[I, X, O](validation: Validation[I, O]) extends Validation[(I, X), (O, X)] {
     override def errors(input: (I, X)): List[Validation.Error] = validation.errors(input._1)
 
-    override def run(input: (I, X)): ValidatedNel[Validation.Error, (O, X)] =
+    override def runUnnormalized(input: (I, X)): ValidatedNel[Validation.Error, (O, X)] =
       validation.run(input._1).map((_, input._2))
 
     override protected def toDebugString(symbol: Symbol): String = validation.toDebugString(symbol)
   }
 
   final case class Invalid(errors: NonEmptyList[Validation.Error]) extends Validation[Any, Nothing] {
-    override def run(input: Any): ValidatedNel[Error, Nothing] = Validated.invalid(errors)
+    override def runUnnormalized(input: Any): ValidatedNel[Error, Nothing] = Validated.invalid(errors)
 
     override def errors(input: Any): List[Error] = errors.toList
 
@@ -447,7 +452,8 @@ object Validation {
   ) extends Validation[I, O] {
     override def errors(input: I): List[Validation.Error] = validation.errors(input).toNel.map(f(_).toList).orEmpty
 
-    override def run(input: I): Validated[NonEmptyList[Validation.Error], O] = validation.run(input).leftMap(f)
+    override def runUnnormalized(input: I): Validated[NonEmptyList[Validation.Error], O] =
+      validation.run(input).leftMap(f)
 
     override protected def toDebugString(symbol: Symbol): String = validation.toDebugString(symbol)
   }

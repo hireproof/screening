@@ -133,6 +133,6 @@ object validations {
 
     def matches(regex: Regex): Validation[String, Unit] = Validation.Text.Matches(regex)
 
-    val required: Validation[String, String] = trim.andThen(nonEmpty.tap).normalize
+    val required: Validation[String, String] = trim.andThen(nonEmpty.tap)
   }
 }
