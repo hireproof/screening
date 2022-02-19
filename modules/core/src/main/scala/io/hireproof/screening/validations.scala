@@ -88,21 +88,23 @@ object validations {
   }
 
   object parsing {
-    val bigDecimal: Validation[String, BigDecimal] = Validation.Parsing.BigDecimal
+    def apply[O](name: String, parse: String => Option[O]): Validation[String, O] = Validation.Parsing(name, parse)
 
-    val bigInt: Validation[String, BigInt] = Validation.Parsing.BigInt
+    val bigDecimal: Validation[String, BigDecimal] = parsing("BigDecimal", parseBigDecimal)
 
-    val double: Validation[String, Double] = Validation.Parsing.Double
+    val bigInt: Validation[String, BigInt] = parsing("BigInt", parseBigInt)
 
-    val float: Validation[String, Float] = Validation.Parsing.Float
+    val double: Validation[String, Double] = parsing("Double", _.toDoubleOption)
 
-    val int: Validation[String, Int] = Validation.Parsing.Int
+    val float: Validation[String, Float] = parsing("Float", _.toFloatOption)
 
-    val long: Validation[String, Long] = Validation.Parsing.Long
+    val int: Validation[String, Int] = parsing("Int", _.toIntOption)
 
-    val short: Validation[String, Short] = Validation.Parsing.Short
+    val long: Validation[String, Long] = parsing("Long", _.toLongOption)
 
-    val uuid: Validation[String, UUID] = Validation.Parsing.Uuid
+    val short: Validation[String, Short] = parsing("Short", _.toShortOption)
+
+    val uuid: Validation[String, UUID] = parsing("UUID", parseUuid)
   }
 
   object text {

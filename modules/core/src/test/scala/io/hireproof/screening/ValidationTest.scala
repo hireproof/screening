@@ -144,7 +144,7 @@ final class ValidationTest extends FunSuite {
     assert(parsing.bigDecimal.run("3").isValid)
     assertEquals(
       obtained = parsing.bigDecimal.run("foobar").error,
-      expected = Some(Validation.Error.Parsing(Validation.Parsing.Value.BigDecimal, "foobar"))
+      expected = Some(Validation.Error.Parsing("BigDecimal", "foobar"))
     )
   }
 
@@ -153,11 +153,11 @@ final class ValidationTest extends FunSuite {
     assert(parsing.bigInt.run("0").isValid)
     assertEquals(
       obtained = parsing.bigInt.run("3.14").error,
-      expected = Some(Validation.Error.Parsing(Validation.Parsing.Value.BigInt, "3.14"))
+      expected = Some(Validation.Error.Parsing("BigInt", "3.14"))
     )
     assertEquals(
       obtained = parsing.bigInt.run("foobar").error,
-      expected = Some(Validation.Error.Parsing(Validation.Parsing.Value.BigInt, "foobar"))
+      expected = Some(Validation.Error.Parsing("BigInt", "foobar"))
     )
   }
 
@@ -166,7 +166,7 @@ final class ValidationTest extends FunSuite {
     assert(parsing.double.run("3").isValid)
     assertEquals(
       obtained = parsing.double.run("foobar").error,
-      expected = Some(Validation.Error.Parsing(Validation.Parsing.Value.Double, "foobar"))
+      expected = Some(Validation.Error.Parsing("Double", "foobar"))
     )
   }
 
@@ -175,7 +175,7 @@ final class ValidationTest extends FunSuite {
     assert(parsing.float.run("3").isValid)
     assertEquals(
       obtained = parsing.float.run("foobar").error,
-      expected = Some(Validation.Error.Parsing(Validation.Parsing.Value.Float, "foobar"))
+      expected = Some(Validation.Error.Parsing("Float", "foobar"))
     )
   }
 
@@ -184,11 +184,11 @@ final class ValidationTest extends FunSuite {
     assert(parsing.int.run("0").isValid)
     assertEquals(
       obtained = parsing.int.run("3.14").error,
-      expected = Some(Validation.Error.Parsing(Validation.Parsing.Value.Int, "3.14"))
+      expected = Some(Validation.Error.Parsing("Int", "3.14"))
     )
     assertEquals(
       obtained = parsing.int.run("foobar").error,
-      expected = Some(Validation.Error.Parsing(Validation.Parsing.Value.Int, "foobar"))
+      expected = Some(Validation.Error.Parsing("Int", "foobar"))
     )
   }
 
@@ -197,11 +197,11 @@ final class ValidationTest extends FunSuite {
     assert(parsing.long.run("0").isValid)
     assertEquals(
       obtained = parsing.long.run("3.14").error,
-      expected = Some(Validation.Error.Parsing(Validation.Parsing.Value.Long, "3.14"))
+      expected = Some(Validation.Error.Parsing("Long", "3.14"))
     )
     assertEquals(
       obtained = parsing.long.run("foobar").error,
-      expected = Some(Validation.Error.Parsing(Validation.Parsing.Value.Long, "foobar"))
+      expected = Some(Validation.Error.Parsing("Long", "foobar"))
     )
   }
 
@@ -210,11 +210,11 @@ final class ValidationTest extends FunSuite {
     assert(parsing.short.run("0").isValid)
     assertEquals(
       obtained = parsing.short.run("3.14").error,
-      expected = Some(Validation.Error.Parsing(Validation.Parsing.Value.Short, "3.14"))
+      expected = Some(Validation.Error.Parsing("Short", "3.14"))
     )
     assertEquals(
       obtained = parsing.short.run("foobar").error,
-      expected = Some(Validation.Error.Parsing(Validation.Parsing.Value.Short, "foobar"))
+      expected = Some(Validation.Error.Parsing("Short", "foobar"))
     )
   }
 

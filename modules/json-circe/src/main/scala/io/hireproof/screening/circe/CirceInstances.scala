@@ -4,7 +4,6 @@ import cats.data.{NonEmptyList, NonEmptyMap}
 import cats.syntax.all._
 import io.circe._
 import io.circe.syntax._
-import io.hireproof.screening.Validation.Parsing.Value
 import io.hireproof.screening.{Selection, Validation}
 
 import java.time.Instant
@@ -76,30 +75,6 @@ trait CirceInstances {
       encoder.variant(context, variant, actual) deepMerge JsonObject(Keys.Reference := reference)
   }
 
-  private val parsingValueToString: Value => String = {
-    case Validation.Parsing.Value.BigDecimal => "bigDecimal"
-    case Validation.Parsing.Value.BigInt     => "bigInt"
-    case Validation.Parsing.Value.Double     => "double"
-    case Validation.Parsing.Value.Float      => "float"
-    case Validation.Parsing.Value.Instant    => "instant"
-    case Validation.Parsing.Value.Int        => "int"
-    case Validation.Parsing.Value.Long       => "long"
-    case Validation.Parsing.Value.Short      => "short"
-    case Validation.Parsing.Value.Uuid       => "uuid"
-  }
-
-  private val parsingValueFromString: String => Option[Validation.Parsing.Value] = PartialFunction.condOpt(_) {
-    case "bigDecimal" => Validation.Parsing.Value.BigDecimal
-    case "bigInt"     => Validation.Parsing.Value.BigInt
-    case "double"     => Validation.Parsing.Value.Double
-    case "float"      => Validation.Parsing.Value.Float
-    case "instant"    => Validation.Parsing.Value.Instant
-    case "int"        => Validation.Parsing.Value.Int
-    case "long"       => Validation.Parsing.Value.Long
-    case "short"      => Validation.Parsing.Value.Short
-    case "uuid"       => Validation.Parsing.Value.Uuid
-  }
-
   implicit private val decoderDuration: Decoder[FiniteDuration] = Decoder.instance { cursor =>
     val length = cursor.get[Long]("length")
     val unit = cursor.get[String]("unit").flatMap { value =>
@@ -146,7 +121,7 @@ trait CirceInstances {
       case (Types.Number, Some(Variants.GreaterThanEqual)) => decoder.reference[Double, Double](cursor).map { case (reference, actual) => Validation.Error.Number.GreaterThan(equal = true, reference, actual) }
       case (Types.Number, Some(Variants.LessThan)) => decoder.reference[Double, Double](cursor).map { case (reference, actual) => Validation.Error.Number.LessThan(equal = false, reference, actual) }
       case (Types.Number, Some(Variants.LessThanEqual)) => decoder.reference[Double, Double](cursor).map { case (reference, actual) => Validation.Error.Number.LessThan(equal = true, reference, actual) }
-      case (Types.Parsing, Some(variant)) => (parsingValueFromString(variant).toRight(DecodingFailure("Invalid parsing variant", cursor.history)), decoder[String](cursor)).mapN(Validation.Error.Parsing.apply)
+      case (Types.Parsing, None) => decoder.reference[String, String](cursor).map { case (reference, actual) => Validation.Error.Parsing(reference, actual) }
       case (Types.Required, None) => Validation.Error.Optional.Required.asRight
       case (Types.Text, Some(Variants.AtLeast)) => decoder.reference[Int, Int](cursor).map { case (reference, actual) => Validation.Error.Text.AtLeast(equal = false, reference, actual) }
       case (Types.Text, Some(Variants.AtLeastEqual)) => decoder.reference[Int, Int](cursor).map { case (reference, actual) => Validation.Error.Text.AtLeast(equal = true, reference, actual) }
@@ -190,7 +165,7 @@ trait CirceInstances {
     case Validation.Error.Number.LessThan(false, reference, actual) => encoder.reference(Types.Number, Variants.LessThan, reference, actual)
     case Validation.Error.Number.LessThan(true, reference, actual) => encoder.reference(Types.Number, Variants.LessThanEqual, reference, actual)
     case Validation.Error.Optional.Required => JsonObject(Keys.Type := Types.Required)
-    case Validation.Error.Parsing(reference, actual) => encoder.variant(Types.Parsing, parsingValueToString(reference), actual)
+    case Validation.Error.Parsing(reference, actual) => encoder(Types.Parsing, actual) deepMerge JsonObject(Keys.Reference := reference)
     case Validation.Error.Text.AtLeast(false, reference, actual) => encoder.reference(Types.Text, Variants.AtLeast, reference, actual)
     case Validation.Error.Text.AtLeast(true, reference, actual) => encoder.reference(Types.Text, Variants.AtLeastEqual, reference, actual)
     case Validation.Error.Text.AtMost(false, reference, actual) => encoder.reference(Types.Text, Variants.AtMost, reference, actual)

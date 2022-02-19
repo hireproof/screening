@@ -5,7 +5,6 @@ import cats.data.{NonEmptyList, NonEmptyMap, Validated, ValidatedNel}
 import cats.syntax.all._
 import cats.{Eq, Semigroup, Show, Traverse, UnorderedFoldable}
 import io.hireproof.screening.Validation.Number.Operator
-import io.hireproof.screening.Validation.Parsing.Value
 
 import java.time.Instant
 import scala.Numeric.Implicits._
@@ -223,56 +222,15 @@ object Validation {
     }
   }
 
-  sealed abstract class Parsing[O](value: Validation.Parsing.Value, parse: String => Option[O])
-      extends Validation[String, O] {
-    def error(input: String): Validation.Error.Parsing = Validation.Error.Parsing(value, input)
+  final case class Parsing[O](name: String, parse: String => Option[O]) extends Validation[String, O] {
+    def error(input: String): Validation.Error.Parsing = Validation.Error.Parsing(name, input)
 
     final override def errors(input: String): List[Validation.Error] = List(error(input))
 
     final override def runUnnormalized(input: String): Validated[NonEmptyList[Validation.Error], O] =
       parse(input).toValidNel(error(input))
 
-    final override protected def toDebugString(symbol: Symbol): String = {
-      val name = value match {
-        case Value.BigDecimal => "BigDecimal"
-        case Value.BigInt     => "BigInt"
-        case Value.Instant    => "Instant"
-        case Value.Double     => "Double"
-        case Value.Float      => "Float"
-        case Value.Int        => "Int"
-        case Value.Long       => "Long"
-        case Value.Short      => "Short"
-        case Value.Uuid       => "UUID"
-      }
-
-      s"$symbol.parse($name)"
-    }
-  }
-
-  object Parsing {
-    sealed abstract class Value extends Product with Serializable
-
-    object Value {
-      case object BigDecimal extends Value
-      case object BigInt extends Value
-      case object Instant extends Value
-      case object Double extends Value
-      case object Float extends Value
-      case object Int extends Value
-      case object Long extends Value
-      case object Short extends Value
-      case object Uuid extends Value
-    }
-
-    case object BigDecimal extends Parsing(Validation.Parsing.Value.BigDecimal, parseBigDecimal)
-    case object BigInt extends Parsing(Validation.Parsing.Value.BigInt, parseBigInt)
-    case object Double extends Parsing(Validation.Parsing.Value.Double, _.toDoubleOption)
-    case object Float extends Parsing(Validation.Parsing.Value.Float, _.toFloatOption)
-    case object Instant extends Parsing(Validation.Parsing.Value.Instant, parseInstant)
-    case object Int extends Parsing(Validation.Parsing.Value.Int, _.toIntOption)
-    case object Long extends Parsing(Validation.Parsing.Value.Long, _.toLongOption)
-    case object Short extends Parsing(Validation.Parsing.Value.Short, _.toShortOption)
-    case object Uuid extends Parsing(Validation.Parsing.Value.Uuid, parseUuid)
+    final override protected def toDebugString(symbol: Symbol): String = s"$symbol.parse($name)"
   }
 
   sealed abstract class Text[O] extends Validation[String, O]
@@ -522,7 +480,7 @@ object Validation {
       final case class LessThan(equal: Boolean, reference: Double, actual: Double) extends Number
     }
 
-    final case class Parsing(reference: Validation.Parsing.Value, actual: String) extends Error
+    final case class Parsing(reference: String, actual: String) extends Error
 
     sealed abstract class Text extends Error
 
