@@ -512,6 +512,8 @@ object Validation {
       case object Required extends Optional
     }
 
+    final case class Missing(reference: Option[String]) extends Error
+
     sealed abstract class Number extends Error
 
     object Number {
