@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.0.10
+
+_2022-02-19_
+
+* Relax parsing constraints to be open to any `f: String => Option[A]`
+* Add `Error.Missing`
+* Update sbt-scalajs, scalajs-compiler, ... to 1.9.0 (#5)
+
 ## 0.0.9
 
 _2022-02-09_
