@@ -94,7 +94,7 @@ object validations {
 
     val bigInt: Validation[String, BigInt] = parsing("BigInt", parseBigInt)
 
-    val boolean: Validation[String, BigDecimal] = parsing("Boolean", _.toBooleanOption)
+    val boolean: Validation[String, Boolean] = parsing("Boolean", _.toBooleanOption)
 
     val double: Validation[String, Double] = parsing("Double", _.toDoubleOption)
 
