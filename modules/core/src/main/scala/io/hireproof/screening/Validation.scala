@@ -441,7 +441,7 @@ object Validation {
       final case class Exactly(reference: Long, actual: Long) extends Collection
     }
 
-    final case class Conflict(actual: String) extends Error
+    final case class Conflict(actual: Option[String]) extends Error
 
     sealed abstract class Date extends Error
 
