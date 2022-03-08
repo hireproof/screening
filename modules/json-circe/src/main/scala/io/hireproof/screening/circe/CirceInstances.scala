@@ -102,7 +102,7 @@ trait CirceInstances {
       case (Types.Collection, Some(Variants.AtMostEqual)) => decoder.reference[Long, Long](cursor).map { case (reference, actual) => Validation.Error.Collection.AtMost(equal = true, reference, actual) }
       case (Types.Collection, Some(Variants.Contains)) => decoder.reference[String, List[String]](cursor).map { case (reference, actual) => Validation.Error.Collection.Contains(reference, actual) }
       case (Types.Collection, Some(Variants.Exactly)) => decoder.reference[Long, Long](cursor).map { case (reference, actual) => Validation.Error.Collection.Exactly(reference,actual) }
-      case (Types.Conflict, None) => decoder[Option[String]](cursor).map(Validation.Error.Conflict.apply)
+      case (Types.Conflict, None) => decoder[String](cursor).map(Validation.Error.Conflict.apply)
       case (Types.Date, Some(Variants.After)) => decoder.reference[Instant, Instant](cursor).map { case (reference, actual) => Validation.Error.Date.After(equal = false, reference, actual) }
       case (Types.Date, Some(Variants.AfterEqual)) => decoder.reference[Instant, Instant](cursor).map { case (reference, actual) => Validation.Error.Date.After(equal = true, reference, actual) }
       case (Types.Date, Some(Variants.Before)) => decoder.reference[Instant, Instant](cursor).map { case (reference, actual) => Validation.Error.Date.Before(equal = false, reference, actual) }
