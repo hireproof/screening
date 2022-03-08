@@ -88,25 +88,16 @@ object validations {
   }
 
   object parsing {
-    def apply[O](name: String, parse: String => Option[O]): Validation[String, O] = Validation.Parsing(name, parse)
-
-    val bigDecimal: Validation[String, BigDecimal] = parsing("BigDecimal", parseBigDecimal)
-
-    val bigInt: Validation[String, BigInt] = parsing("BigInt", parseBigInt)
-
-    val boolean: Validation[String, Boolean] = parsing("Boolean", _.toBooleanOption)
-
-    val double: Validation[String, Double] = parsing("Double", _.toDoubleOption)
-
-    val float: Validation[String, Float] = parsing("Float", _.toFloatOption)
-
-    val int: Validation[String, Int] = parsing("Int", _.toIntOption)
-
-    val long: Validation[String, Long] = parsing("Long", _.toLongOption)
-
-    val short: Validation[String, Short] = parsing("Short", _.toShortOption)
-
-    val uuid: Validation[String, UUID] = parsing("UUID", parseUuid)
+    def apply[O](name: String)(parse: String => Option[O]): Validation[String, O] = Validation.Parsing(name, parse)
+    val bigDecimal: Validation[String, BigDecimal] = parsing("BigDecimal")(parseBigDecimal)
+    val bigInt: Validation[String, BigInt] = parsing("BigInt")(parseBigInt)
+    val boolean: Validation[String, Boolean] = parsing("Boolean")(_.toBooleanOption)
+    val double: Validation[String, Double] = parsing("Double")(_.toDoubleOption)
+    val float: Validation[String, Float] = parsing("Float")(_.toFloatOption)
+    val int: Validation[String, Int] = parsing("Int")(_.toIntOption)
+    val long: Validation[String, Long] = parsing("Long")(_.toLongOption)
+    val short: Validation[String, Short] = parsing("Short")(_.toShortOption)
+    val uuid: Validation[String, UUID] = parsing("UUID")(parseUuid)
   }
 
   object text {
