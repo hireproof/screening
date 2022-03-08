@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.0.11
+
+_2022-03-08_
+
+* Use 2 arg groups for `parsing.apply`
+* Add parsing.boolean
+* Update sbt-houserules to 0.3.20 (#6)
+
 ## 0.0.10
 
 _2022-02-19_
