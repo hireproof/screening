@@ -1,10 +1,12 @@
 package io.hireproof.screening
 
 import cats.{Eq, Show, Traverse, UnorderedFoldable}
+import cats.syntax.all._
 
 import java.time._
 import java.util.UUID
 import scala.concurrent.duration.FiniteDuration
+import scala.reflect.ClassTag
 import scala.util.matching.Regex
 
 object validations {
@@ -98,6 +100,16 @@ object validations {
     val long: Validation[String, Long] = parsing("Long")(_.toLongOption)
     val short: Validation[String, Short] = parsing("Short")(_.toShortOption)
     val uuid: Validation[String, UUID] = parsing("UUID")(parseUuid)
+
+    def catchOnly[T >: Null <: Throwable]: CatchOnlyBuilder[T] = new CatchOnlyBuilder[T]
+
+    final class CatchOnlyBuilder[T >: Null <: Throwable] {
+      def apply[O](name: String)(parse: String => O)(implicit tag: ClassTag[T]): Validation[String, O] = parsing(name) {
+        value =>
+          try parse(value).some
+          catch { case throwable if tag.runtimeClass.isInstance(throwable) => none[O] }
+      }
+    }
   }
 
   object text {
