@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.0.12
+
+_2022-03-10_
+
+* __ -> hist
+* Add parsing.catchOnly[T]
+
 ## 0.0.11
 
 _2022-03-08_
