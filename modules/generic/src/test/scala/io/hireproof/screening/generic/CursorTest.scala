@@ -11,22 +11,22 @@ final class CursorTest extends FunSuite {
 
   test("modifyHistory: success") {
     val obtained = Cursor
-      .withHistory(__ / "foo" / "bar", "")
-      .modifyHistory(__ / "prefix" ++ _)
+      .withHistory(hist / "foo" / "bar", "")
+      .modifyHistory(hist / "prefix" ++ _)
 
-    val expected = Cursor.withHistory(__ / "prefix" / "foo" / "bar", "")
+    val expected = Cursor.withHistory(hist / "prefix" / "foo" / "bar", "")
 
     assertEquals(obtained, expected)
   }
 
   test("modifyHistory: failure") {
     val obtained = Cursor
-      .withHistory(__ / "foo" / "bar", "")
+      .withHistory(hist / "foo" / "bar", "")
       .validate(Validation.invalidNel(Validation.Error.Unknown("x")))
       .modifyHistory(_ / "suffix")
 
     val expected =
-      Cursor.Failure(Validation.Errors.oneNel(__ / "foo" / "bar" / "suffix", Validation.Error.Unknown("x")))
+      Cursor.Failure(Validation.Errors.oneNel(hist / "foo" / "bar" / "suffix", Validation.Error.Unknown("x")))
 
     assertEquals(obtained, expected)
   }
@@ -40,7 +40,7 @@ final class CursorTest extends FunSuite {
       Cursor.root(bar).field("value", _.value).validate(text.required)
     }
 
-    val expected = Cursor.Success[Option, String](Some(Cursor.Value(__ / "bar" / "value", "foobar")))
+    val expected = Cursor.Success[Option, String](Some(Cursor.Value(hist / "bar" / "value", "foobar")))
 
     assertEquals(obtained, expected)
   }
@@ -54,7 +54,7 @@ final class CursorTest extends FunSuite {
       Cursor.root(bar).field("value", _.value).validate(text.required)
     }
 
-    val expected = Cursor.Failure(Validation.Errors.oneNel(__ / "bar" / "value", requiredError))
+    val expected = Cursor.Failure(Validation.Errors.oneNel(hist / "bar" / "value", requiredError))
 
     assertEquals(obtained, expected)
   }
@@ -65,7 +65,7 @@ final class CursorTest extends FunSuite {
 
     val obtained = Cursor.root(Bar(Foo(""))).field("foo", _.foo).field("bar", _.bar)
 
-    val expected = Cursor.withHistory(__ / "foo" / "bar", "")
+    val expected = Cursor.withHistory(hist / "foo" / "bar", "")
 
     assertEquals(obtained, expected)
   }
@@ -80,7 +80,7 @@ final class CursorTest extends FunSuite {
       .field("bar", _.bar)
       .validate(text.required)
 
-    val expected = Cursor.Failure(Validation.Errors.oneNel(__ / "foo" / "bar", requiredError))
+    val expected = Cursor.Failure(Validation.Errors.oneNel(hist / "foo" / "bar", requiredError))
 
     assertEquals(obtained, expected)
   }
@@ -93,8 +93,8 @@ final class CursorTest extends FunSuite {
     val obtained = Cursor.root(Foo(values)).collection("bars", _.bars)
 
     val expected = Cursor
-      .Success(values.mapWithIndex((value, index) => Cursor.Value(__ / index, value)))
-      .modifyHistory(__ / "bars" ++ _)
+      .Success(values.mapWithIndex((value, index) => Cursor.Value(hist / index, value)))
+      .modifyHistory(hist / "bars" ++ _)
 
     assertEquals(obtained, expected)
   }
@@ -108,7 +108,7 @@ final class CursorTest extends FunSuite {
       .validate(text.required)
 
     val expected = Cursor.Failure(
-      Validation.Errors.ofError(__ / 0 -> requiredError, __ / 2 -> requiredError).modifyHistory(__ / "bars" ++ _)
+      Validation.Errors.ofError(hist / 0 -> requiredError, hist / 2 -> requiredError).modifyHistory(hist / "bars" ++ _)
     )
 
     assertEquals(obtained, expected)
@@ -127,7 +127,7 @@ final class CursorTest extends FunSuite {
       .andThen(_.collection.runWith(lift(Name.apply)))
       .ensure(collection.atMost[List, Name](3))
 
-    val expected = Cursor.withHistory(__ / "bars", values.map(Name.apply))
+    val expected = Cursor.withHistory(hist / "bars", values.map(Name.apply))
 
     assertEquals(obtained, expected)
   }
@@ -145,7 +145,7 @@ final class CursorTest extends FunSuite {
       .andThen(_.collection.runWith(text.required.map(Name.apply)))
       .ensure(collection.atMost[List, Name](3))
 
-    val expected = Cursor.Failure(Validation.Errors.oneNel(__ / "bars" / 1, requiredError))
+    val expected = Cursor.Failure(Validation.Errors.oneNel(hist / "bars" / 1, requiredError))
 
     assertEquals(obtained, expected)
   }
@@ -165,7 +165,7 @@ final class CursorTest extends FunSuite {
 
     val expected = Cursor.Failure(
       Validation.Errors.oneNel(
-        __ / "bars",
+        hist / "bars",
         Validation.Error.Collection.AtMost(equal = true, reference = 1, actual = values.length.toLong)
       )
     )
@@ -182,7 +182,7 @@ final class CursorTest extends FunSuite {
       .option("foo", _.foo)
       .field("bar", _.bar)
 
-    val expected = Cursor.Success[Option, String](Some(Cursor.Value(__ / "foo" / "bar", "")))
+    val expected = Cursor.Success[Option, String](Some(Cursor.Value(hist / "foo" / "bar", "")))
 
     assertEquals(obtained, expected)
   }
@@ -197,7 +197,7 @@ final class CursorTest extends FunSuite {
       .field("bar", _.bar)
       .validate(text.required)
 
-    val expected = Cursor.Failure(Validation.Errors.oneNel(__ / "foo" / "bar", requiredError))
+    val expected = Cursor.Failure(Validation.Errors.oneNel(hist / "foo" / "bar", requiredError))
 
     assertEquals(obtained, expected)
   }
@@ -220,7 +220,7 @@ final class CursorTest extends FunSuite {
         case Animal.Dog(_) => "dog" -> Validated.valid("bar")
       }
 
-    val expected = Cursor.withHistory(__ / "animal" / "dog", "bar")
+    val expected = Cursor.withHistory(hist / "animal" / "dog", "bar")
 
     assertEquals(obtained, expected)
   }
@@ -243,7 +243,7 @@ final class CursorTest extends FunSuite {
         case Animal.Dog(_)    => "dog" -> Validated.valid("bar")
       }
 
-    val expected = Cursor.Failure(Validation.Errors.oneNel(__ / "animal" / "cat", requiredError))
+    val expected = Cursor.Failure(Validation.Errors.oneNel(hist / "animal" / "cat", requiredError))
 
     assertEquals(obtained, expected)
   }

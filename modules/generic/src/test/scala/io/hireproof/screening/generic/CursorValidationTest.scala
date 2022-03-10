@@ -48,8 +48,8 @@ final class CursorValidationTest extends FunSuite {
       obtained = validation.run(User(age = 12, User.Address(""))),
       expected = Validated.invalid(
         Validation.Errors.ofError(
-          __ / "age" -> Validation.Error.Number.GreaterThan(equal = true, reference = 18, actual = 12),
-          __ / "address" / "city" -> Validation.Error.Text.AtLeast(equal = false, reference = 0, actual = 0)
+          hist / "age" -> Validation.Error.Number.GreaterThan(equal = true, reference = 18, actual = 12),
+          hist / "address" / "city" -> Validation.Error.Text.AtLeast(equal = false, reference = 0, actual = 0)
         )
       )
     )
@@ -75,7 +75,7 @@ final class CursorValidationTest extends FunSuite {
       obtained = validation.run(User(Some(""))),
       expected = Validated.invalid(
         Validation.Errors.oneNel(
-          __ / "name",
+          hist / "name",
           Validation.Error.Text.AtLeast(equal = false, reference = 0, actual = 0)
         )
       )
@@ -102,7 +102,7 @@ final class CursorValidationTest extends FunSuite {
     assertEquals(
       obtained = validation.run(Users(Nil)),
       expected = Validated.invalid(
-        Validation.Errors.oneNel(__ / "names", Validation.Error.Collection.AtLeast(equal = true, 1, 0))
+        Validation.Errors.oneNel(hist / "names", Validation.Error.Collection.AtLeast(equal = true, 1, 0))
       )
     )
 
@@ -110,8 +110,8 @@ final class CursorValidationTest extends FunSuite {
       obtained = validation.run(Users(List("", "foo", ""))),
       expected = Validated.invalid(
         Validation.Errors.ofError(
-          (__ / "names" / 0) -> Validation.Error.Text.AtLeast(equal = false, 0, 0),
-          (__ / "names" / 2) -> Validation.Error.Text.AtLeast(equal = false, 0, 0)
+          (hist / "names" / 0) -> Validation.Error.Text.AtLeast(equal = false, 0, 0),
+          (hist / "names" / 2) -> Validation.Error.Text.AtLeast(equal = false, 0, 0)
         )
       )
     )
