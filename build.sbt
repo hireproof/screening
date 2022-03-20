@@ -39,9 +39,11 @@ lazy val root = module(identifier = None)
   .settings(noPublishSettings)
   .settings(
     blowoutGenerators ++= {
-      val workflows = file(".github") / "workflows"
+      val github = file(".github")
+      val workflows = github / "workflows"
 
-      BlowoutYamlGenerator.lzy(workflows / "main.yml", GithubActionsGenerator.main(Version.Java)) ::
+      BlowoutYamlGenerator(github / "dependabot.yml", DependabotGenerator.apply) ::
+        BlowoutYamlGenerator.lzy(workflows / "main.yml", GithubActionsGenerator.main(Version.Java)) ::
         BlowoutYamlGenerator.lzy(workflows / "pull-request.yml", GithubActionsGenerator.pullRequest(Version.Java)) ::
         Nil
     }
