@@ -29,6 +29,7 @@ trait CirceInstances {
     val Time = "time"
     val Duration = "duration"
     val Number = "number"
+    val OneOf = "oneOf"
     val Or = "or"
     val Parsing = "parsing"
     val Text = "text"
@@ -77,6 +78,7 @@ trait CirceInstances {
       case (Types.Number, Some(Variants.GreaterThan)) => (cursor.get[Boolean](Keys.Equal), cursor.get[Double](Keys.Reference), cursor.get[Double](Keys.Delta)).mapN(Constraint.Number.GreaterThan)
       case (Types.Number, Some(Variants.LessThan)) => (cursor.get[Boolean](Keys.Equal), cursor.get[Double](Keys.Reference), cursor.get[Double](Keys.Delta)).mapN(Constraint.Number.LessThan)
       case (Types.Optional, Some(Variants.IsDefined)) => Constraint.Optional.IsDefined.asRight
+      case (Types.OneOf, None) => cursor.get[Set[String]](Keys.Reference).map(Constraint.OneOf)
       case (Types.Or, None) => (cursor.get[Set[Constraint]](Keys.Left), cursor.get[Set[Constraint]](Keys.Right)).mapN(Constraint.Or)
       case (Types.Parsing, None) => cursor.get[String](Keys.Reference).map(Constraint.Parsing)
       case (Types.Text, Some(Variants.AtLeast)) => (cursor.get[Boolean](Keys.Equal), cursor.get[Int](Keys.Reference)).mapN(Constraint.Text.AtLeast)
@@ -104,6 +106,7 @@ trait CirceInstances {
     case Constraint.Number.GreaterThan(equal, reference, delta) => JsonObject(Keys.Type := Types.Number, Keys.Variant := Variants.GreaterThan, Keys.Equal := equal, Keys.Reference := reference, Keys.Delta := delta)
     case Constraint.Number.LessThan(equal, reference, delta) => JsonObject(Keys.Type := Types.Number, Keys.Variant := Variants.LessThan, Keys.Equal := equal, Keys.Reference := reference, Keys.Delta := delta)
     case Constraint.Optional.IsDefined => JsonObject(Keys.Type := Types.Optional, Keys.Variant := Variants.IsDefined)
+    case Constraint.OneOf(references) => JsonObject(Keys.Type := Types.OneOf, Keys.Reference := references)
     case Constraint.Or(left, right) => JsonObject(Keys.Type := Types.Or, Keys.Left := left, Keys.Right := right)
     case Constraint.Parsing(reference) => JsonObject(Keys.Type := Types.Parsing, Keys.Reference := reference)
     case Constraint.Text.AtLeast(equal, reference) => JsonObject(Keys.Type := Types.Text, Keys.Variant := Variants.AtLeast, Keys.Equal := equal, Keys.Reference := reference)

@@ -12,7 +12,7 @@ final class ValidationTest extends FunSuite {
     assert(list.atLeast(reference = 3).run(List(1, 2, 3)).isValid)
     assertEquals(
       obtained = list.atLeast(reference = 3).run(List(1)).error,
-      expected = Constraint.Collection.AtLeast(equal = true, reference = 3).some
+      expected = Error.BrokenConstraint(Constraint.Collection.AtLeast(equal = true, reference = 3), actual = 1).some
     )
   }
 
@@ -21,7 +21,7 @@ final class ValidationTest extends FunSuite {
     assert(list.atMost(reference = 3).run(List(1, 2, 3)).isValid)
     assertEquals(
       obtained = list.atMost(reference = 1).run(List(1, 2, 3)).error,
-      expected = Constraint.Collection.AtMost(equal = true, reference = 1).some
+      expected = Error.BrokenConstraint(Constraint.Collection.AtMost(equal = true, reference = 1), actual = 3).some
     )
   }
 
@@ -29,7 +29,7 @@ final class ValidationTest extends FunSuite {
     assert(list.empty.run(Nil).isValid)
     assertEquals(
       obtained = list.empty.run(List(1, 2, 3)).error,
-      expected = Constraint.Collection.AtMost(equal = true, reference = 0).some
+      expected = Error.BrokenConstraint(Constraint.Collection.AtMost(equal = true, reference = 0), actual = 3).some
     )
   }
 
@@ -37,7 +37,7 @@ final class ValidationTest extends FunSuite {
     assert(list.nonEmpty.run(List(1, 2, 3)).isValid)
     assertEquals(
       obtained = list.nonEmpty.run(Nil).error,
-      expected = Constraint.Collection.AtLeast(equal = true, reference = 1).some
+      expected = Error.BrokenConstraint(Constraint.Collection.AtLeast(equal = true, reference = 1), actual = 0).some
     )
   }
 
@@ -46,7 +46,7 @@ final class ValidationTest extends FunSuite {
     assert(list.exactly(reference = 0).run(Nil).isValid)
     assertEquals(
       obtained = list.exactly(reference = 3).run(List(1)).error,
-      expected = Constraint.Collection.Exactly(reference = 3).some
+      expected = Error.BrokenConstraint(Constraint.Collection.Exactly(reference = 3), actual = 1).some
     )
   }
 
@@ -54,7 +54,8 @@ final class ValidationTest extends FunSuite {
     assert(list.contains(reference = "foobar").run(List("foo", "foobar", "bar")).isValid)
     assertEquals(
       obtained = list.contains(reference = "foobar").run(List("foo", "bar")).error,
-      expected = Constraint.Collection.Contains(reference = "foobar").some
+      expected =
+        Error.BrokenConstraint(Constraint.Collection.Contains(reference = "foobar"), actual = List("foo", "bar")).some
     )
   }
 
@@ -65,7 +66,12 @@ final class ValidationTest extends FunSuite {
     assert(time.after(sample, equal = true).run(sample.plusSeconds(100)).isValid)
     assertEquals(
       obtained = time.after(sample).run(sample.minusSeconds(100)).error,
-      expected = Constraint.Time.After(equal = true, sample.atZone(ZoneOffset.UTC)).some
+      expected = Error
+        .BrokenConstraint(
+          Constraint.Time.After(equal = true, sample.atZone(ZoneOffset.UTC)),
+          actual = sample.minusSeconds(100)
+        )
+        .some
     )
   }
 
@@ -76,7 +82,12 @@ final class ValidationTest extends FunSuite {
     assert(time.before(sample, equal = true).run(sample.minusSeconds(100)).isValid)
     assertEquals(
       obtained = time.before(sample).run(sample.plusSeconds(100)).error,
-      expected = Constraint.Time.Before(equal = true, sample.atZone(ZoneOffset.UTC)).some
+      expected = Error
+        .BrokenConstraint(
+          Constraint.Time.Before(equal = true, sample.atZone(ZoneOffset.UTC)),
+          actual = sample.plusSeconds(100)
+        )
+        .some
     )
   }
 
@@ -85,11 +96,15 @@ final class ValidationTest extends FunSuite {
     assert(number.greaterThan(reference = 1, equal = true, delta = 0.5d).run(0.5d).isValid)
     assertEquals(
       obtained = number.greaterThan(reference = 1, equal = false, delta = 0.5d).run(0.5d).error,
-      expected = Constraint.Number.GreaterThan(equal = false, reference = 1, delta = 0.5d).some
+      expected = Error
+        .BrokenConstraint(Constraint.Number.GreaterThan(equal = false, reference = 1, delta = 0.5d), actual = 0.5d)
+        .some
     )
     assertEquals(
       obtained = number.greaterThan(reference = 1, equal = true, delta = 0.5d).run(0.25d).error,
-      expected = Constraint.Number.GreaterThan(equal = true, reference = 1, delta = 0.5d).some
+      expected = Error
+        .BrokenConstraint(Constraint.Number.GreaterThan(equal = true, reference = 1, delta = 0.5d), actual = 0.25d)
+        .some
     )
   }
 
@@ -97,11 +112,11 @@ final class ValidationTest extends FunSuite {
     assert(number.greaterThanNotEqual(reference = 1).run(3).isValid)
     assertEquals(
       obtained = number.greaterThanNotEqual(reference = 3).run(3).error,
-      expected = Constraint.Number.GreaterThan(equal = false, 3, 0).some
+      expected = Error.BrokenConstraint(Constraint.Number.GreaterThan(equal = false, 3, 0), actual = 3).some
     )
     assertEquals(
       obtained = number.greaterThanNotEqual(3).run(1).error,
-      expected = Constraint.Number.GreaterThan(equal = false, 3, 0).some
+      expected = Error.BrokenConstraint(Constraint.Number.GreaterThan(equal = false, 3, 0), actual = 1).some
     )
   }
 
@@ -110,7 +125,7 @@ final class ValidationTest extends FunSuite {
     assert(number.greaterThanEqual(reference = 3).run(3).isValid)
     assertEquals(
       obtained = number.greaterThanEqual(3).run(1).error,
-      expected = Constraint.Number.GreaterThan(equal = true, 3, 0).some
+      expected = Error.BrokenConstraint(Constraint.Number.GreaterThan(equal = true, 3, 0), actual = 1).some
     )
   }
 
@@ -118,11 +133,11 @@ final class ValidationTest extends FunSuite {
     assert(number.lessThanNotEqual(reference = 3).run(1).isValid)
     assertEquals(
       obtained = number.lessThanNotEqual(reference = 3).run(3).error,
-      expected = Constraint.Number.LessThan(equal = false, 3, 0).some
+      expected = Error.BrokenConstraint(Constraint.Number.LessThan(equal = false, 3, 0), actual = 3).some
     )
     assertEquals(
       obtained = number.lessThanNotEqual(1).run(3).error,
-      expected = Constraint.Number.LessThan(equal = false, 1, 0).some
+      expected = Error.BrokenConstraint(Constraint.Number.LessThan(equal = false, 1, 0), actual = 3).some
     )
   }
 
@@ -131,11 +146,15 @@ final class ValidationTest extends FunSuite {
     assert(number.lessThan(reference = 1, equal = true, delta = 0.5d).run(1.5d).isValid)
     assertEquals(
       obtained = number.lessThan(reference = 1, equal = false, delta = 0.5d).run(1.5d).error,
-      expected = Constraint.Number.LessThan(equal = false, reference = 1, delta = 0.5d).some
+      expected = Error
+        .BrokenConstraint(Constraint.Number.LessThan(equal = false, reference = 1, delta = 0.5d), actual = 1.5d)
+        .some
     )
     assertEquals(
       obtained = number.lessThan(reference = 1, equal = true, delta = 0.5d).run(1.75d).error,
-      expected = Constraint.Number.LessThan(equal = true, reference = 1, delta = 0.5d).some
+      expected = Error
+        .BrokenConstraint(Constraint.Number.LessThan(equal = true, reference = 1, delta = 0.5d), actual = 1.75d)
+        .some
     )
   }
 
@@ -144,7 +163,7 @@ final class ValidationTest extends FunSuite {
     assert(number.lessThanEqual(reference = 3).run(3).isValid)
     assertEquals(
       obtained = number.lessThanEqual(1).run(3).error,
-      expected = Constraint.Number.LessThan(equal = true, 1, 0).some
+      expected = Error.BrokenConstraint(Constraint.Number.LessThan(equal = true, 1, 0), actual = 3).some
     )
   }
 
@@ -155,11 +174,11 @@ final class ValidationTest extends FunSuite {
 
     assertEquals(
       obtained = number.equal(1).run(3).error,
-      expected = Constraint.Number.Equal(1, 0).some
+      expected = Error.BrokenConstraint(Constraint.Number.Equal(1, 0), actual = 3).some
     )
     assertEquals(
       obtained = number.equal(0.3d, 0).run(0.1d + 0.2d).error,
-      expected = Constraint.Number.Equal(0.3d, 0).some
+      expected = Error.BrokenConstraint(Constraint.Number.Equal(0.3d, 0), actual = 0.1d + 0.2d).some
     )
   }
 
@@ -174,7 +193,7 @@ final class ValidationTest extends FunSuite {
     assert(parsing.bigDecimal.run("3").isValid)
     assertEquals(
       obtained = parsing.bigDecimal.run("foobar").error,
-      expected = Constraint.Parsing("BigDecimal").some
+      expected = Error.BrokenConstraint(Constraint.Parsing("BigDecimal"), actual = "foobar").some
     )
   }
 
@@ -183,11 +202,11 @@ final class ValidationTest extends FunSuite {
     assert(parsing.bigInt.run("0").isValid)
     assertEquals(
       obtained = parsing.bigInt.run("3.14").error,
-      expected = Constraint.Parsing("BigInt").some
+      expected = Error.BrokenConstraint(Constraint.Parsing("BigInt"), actual = "3.14").some
     )
     assertEquals(
       obtained = parsing.bigInt.run("foobar").error,
-      expected = Constraint.Parsing("BigInt").some
+      expected = Error.BrokenConstraint(Constraint.Parsing("BigInt"), actual = "foobar").some
     )
   }
 
@@ -196,7 +215,7 @@ final class ValidationTest extends FunSuite {
     assert(parsing.double.run("3").isValid)
     assertEquals(
       obtained = parsing.double.run("foobar").error,
-      expected = Constraint.Parsing("Double").some
+      expected = Error.BrokenConstraint(Constraint.Parsing("Double"), actual = "foobar").some
     )
   }
 
@@ -205,7 +224,7 @@ final class ValidationTest extends FunSuite {
     assert(parsing.float.run("3").isValid)
     assertEquals(
       obtained = parsing.float.run("foobar").error,
-      expected = Constraint.Parsing("Float").some
+      expected = Error.BrokenConstraint(Constraint.Parsing("Float"), actual = "foobar").some
     )
   }
 
@@ -214,11 +233,11 @@ final class ValidationTest extends FunSuite {
     assert(parsing.int.run("0").isValid)
     assertEquals(
       obtained = parsing.int.run("3.14").error,
-      expected = Constraint.Parsing("Int").some
+      expected = Error.BrokenConstraint(Constraint.Parsing("Int"), actual = "3.14").some
     )
     assertEquals(
       obtained = parsing.int.run("foobar").error,
-      expected = Constraint.Parsing("Int").some
+      expected = Error.BrokenConstraint(Constraint.Parsing("Int"), actual = "foobar").some
     )
   }
 
@@ -227,11 +246,11 @@ final class ValidationTest extends FunSuite {
     assert(parsing.long.run("0").isValid)
     assertEquals(
       obtained = parsing.long.run("3.14").error,
-      expected = Constraint.Parsing("Long").some
+      expected = Error.BrokenConstraint(Constraint.Parsing("Long"), actual = "3.14").some
     )
     assertEquals(
       obtained = parsing.long.run("foobar").error,
-      expected = Constraint.Parsing("Long").some
+      expected = Error.BrokenConstraint(Constraint.Parsing("Long"), actual = "foobar").some
     )
   }
 
@@ -240,11 +259,11 @@ final class ValidationTest extends FunSuite {
     assert(parsing.short.run("0").isValid)
     assertEquals(
       obtained = parsing.short.run("3.14").error,
-      expected = Constraint.Parsing("Short").some
+      expected = Error.BrokenConstraint(Constraint.Parsing("Short"), actual = "3.14").some
     )
     assertEquals(
       obtained = parsing.short.run("foobar").error,
-      expected = Constraint.Parsing("Short").some
+      expected = Error.BrokenConstraint(Constraint.Parsing("Short"), actual = "foobar").some
     )
   }
 
@@ -253,7 +272,7 @@ final class ValidationTest extends FunSuite {
     assert(text.atLeast(reference = 3, equal = true).run("foo").isValid)
     assertEquals(
       obtained = text.atLeast(reference = 3, equal = true).run("fo").error,
-      expected = Constraint.Text.AtLeast(equal = true, reference = 3).some
+      expected = Error.BrokenConstraint(Constraint.Text.AtLeast(equal = true, reference = 3), actual = 2).some
     )
   }
 
@@ -262,7 +281,7 @@ final class ValidationTest extends FunSuite {
     assert(text.atMost(reference = 3, equal = true).run("foo").isValid)
     assertEquals(
       obtained = text.atMost(reference = 1, equal = true).run("foo").error,
-      expected = Constraint.Text.AtMost(equal = true, reference = 1).some
+      expected = Error.BrokenConstraint(Constraint.Text.AtMost(equal = true, reference = 1), actual = 3).some
     )
   }
 
@@ -270,7 +289,7 @@ final class ValidationTest extends FunSuite {
     assert(text.empty.run("").isValid)
     assertEquals(
       obtained = text.empty.run("foo").error,
-      expected = Constraint.Text.AtMost(equal = true, reference = 0).some
+      expected = Error.BrokenConstraint(Constraint.Text.AtMost(equal = true, reference = 0), actual = 3).some
     )
   }
 
@@ -278,7 +297,7 @@ final class ValidationTest extends FunSuite {
     assert(text.nonEmpty.run("foobar").isValid)
     assertEquals(
       obtained = text.nonEmpty.run("").error,
-      expected = Constraint.Text.AtLeast(equal = true, reference = 1).some
+      expected = Error.BrokenConstraint(Constraint.Text.AtLeast(equal = true, reference = 1), actual = 0).some
     )
   }
 
@@ -287,7 +306,7 @@ final class ValidationTest extends FunSuite {
     assert(text.exactly(reference = 0).run("").isValid)
     assertEquals(
       obtained = text.exactly(reference = 1).run("foo").error,
-      expected = Constraint.Text.Exactly(reference = 1).some
+      expected = Error.BrokenConstraint(Constraint.Text.Exactly(reference = 1), actual = 3).some
     )
   }
 
@@ -297,11 +316,11 @@ final class ValidationTest extends FunSuite {
     assert(text.matches(regex = Whitespace).run("   ").isValid)
     assertEquals(
       obtained = text.matches(regex = Whitespace).run(" foobar ").error,
-      expected = Constraint.Text.Matches(regex = Whitespace).some
+      expected = Error.BrokenConstraint(Constraint.Text.Matches(regex = Whitespace), actual = " foobar ").some
     )
     assertEquals(
       obtained = text.matches(regex = Whitespace).run("").error,
-      expected = Constraint.Text.Matches(regex = Whitespace).some
+      expected = Error.BrokenConstraint(Constraint.Text.Matches(regex = Whitespace), actual = "").some
     )
   }
 

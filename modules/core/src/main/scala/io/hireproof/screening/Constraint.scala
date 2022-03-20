@@ -66,6 +66,10 @@ object Constraint {
     }
   }
 
+  final case class OneOf(references: Set[String]) extends Constraint {
+    override def toDebugString: String = s"_.oneOf(${references.map(_.mkString(","))})"
+  }
+
   sealed abstract class Optional extends Constraint
 
   object Optional {
@@ -112,6 +116,5 @@ object Constraint {
     final case class Before(equal: Boolean, reference: ZonedDateTime) extends Time {
       override def toDebugString: String = s"_.isBefore($reference)"
     }
-
   }
 }

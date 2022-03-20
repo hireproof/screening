@@ -96,18 +96,9 @@ object validations {
     def exactly(reference: FiniteDuration): Validation[FiniteDuration, Unit] =
       Validation.condNel(Constraint.Duration.Exactly(reference))(_ == reference)
   }
-//
-//  object mapping {
-//    def apply[I: Show, O](
-//        f: I => Option[O],
-//        references: Option[Set[I]] = None
-//    ): Validation[I, O] = Validation.Mapping(f, references)
-//
-//    def partial[I: Show, O](
-//        pf: PartialFunction[I, O],
-//        references: Option[Set[I]] = None
-//    ): Validation[I, O] = Validation.Mapping(pf.lift, references)
-//  }
+
+  def oneOf[I: Show](references: Set[I]): Validation[I, Unit] =
+    Validation.condNel(Constraint.OneOf(references.map(_.show)))(references.contains)
 
   object number {
     def equal[I: Numeric](reference: I, delta: I): Validation[I, Unit] =
