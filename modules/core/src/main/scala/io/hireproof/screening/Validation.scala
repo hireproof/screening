@@ -1,12 +1,11 @@
 package io.hireproof.screening
 
+import cats.Applicative
 import cats.arrow.Arrow
-import cats.data.{NonEmptyList, NonEmptyMap, Validated, ValidatedNel}
+import cats.data.{NonEmptyList, Validated, ValidatedNel}
 import cats.syntax.all._
-import cats.{Applicative, Semigroup}
 import io.hireproof.screening.validations._
 
-import scala.collection.immutable.SortedMap
 import scala.reflect.ClassTag
 
 abstract class Validation[-I, +O] {
@@ -40,49 +39,6 @@ object Validation {
       Validation(Set(Constraint.Or(validation.constraints, right.constraints))) { input =>
         validation.run(input).orElse(right.run(input))
       }
-  }
-
-  final case class Violations(toNem: NonEmptyMap[Selection.History, NonEmptyList[Constraint]]) {
-    def modifyHistory(f: Selection.History => Selection.History): Validation.Violations = Violations(toNem.mapKeys(f))
-
-    def modifyConstraints(f: NonEmptyList[Constraint] => NonEmptyList[Constraint]): Validation.Violations =
-      Violations(toNem.map(f))
-
-    def modifyConstraint(f: Constraint => Constraint): Validation.Violations = modifyConstraints(_.map(f))
-
-    def merge(errors: Validation.Violations): Validation.Violations = this |+| errors
-
-    def get(history: Selection.History): List[Constraint] = toNem(history).map(_.toList).orEmpty
-  }
-
-  object Violations {
-    def of(
-        head: (Selection.History, NonEmptyList[Constraint]),
-        tail: (Selection.History, NonEmptyList[Constraint])*
-    ): Validation.Violations = Violations(NonEmptyMap.of(head, tail: _*))
-
-    def ofNel(
-        head: (Selection.History, Constraint),
-        tail: (Selection.History, Constraint)*
-    ): Validation.Violations =
-      Violations(NonEmptyMap.of(head.map(NonEmptyList.one), tail.map(_.map(NonEmptyList.one)): _*))
-
-    def one(history: Selection.History, constraints: NonEmptyList[Constraint]): Validation.Violations =
-      Violations(NonEmptyMap.one(history, constraints))
-
-    def oneNel(history: Selection.History, constraint: Constraint): Validation.Violations =
-      one(history, NonEmptyList.one(constraint))
-
-    def root(errors: NonEmptyList[Constraint]): Validation.Violations = one(Selection.History.Root, errors)
-
-    def rootNel(error: Constraint): Validation.Violations = oneNel(Selection.History.Root, error)
-
-    def fromMap(values: SortedMap[Selection.History, NonEmptyList[Constraint]]): Option[Validation.Violations] =
-      NonEmptyMap.fromMap(values).map(Violations.apply)
-
-    implicit val semigroup: Semigroup[Validation.Violations] = new Semigroup[Validation.Violations] {
-      override def combine(x: Violations, y: Violations): Violations = Violations(x.toNem |+| y.toNem)
-    }
   }
 
   private def apply[I, O](
