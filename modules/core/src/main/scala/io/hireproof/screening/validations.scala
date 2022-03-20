@@ -14,22 +14,27 @@ import scala.util.matching.Regex
 
 object validations {
   abstract class iterable[F[a] <: Iterable[a]] {
-    def atLeast[A](reference: Int, equal: Boolean = true): Validation[F[A], Unit] =
-      Validation.condNel(Constraint.Collection.AtLeast(equal, reference.toLong)) { input =>
-        if (equal) input.size >= reference else input.size > reference
-      }
+    val size: Validation[F[_], Int] = Validation.lift(_.size)
 
-    def atMost[A](reference: Int, equal: Boolean = true): Validation[F[A], Unit] =
-      Validation.condNel(Constraint.Collection.AtMost(equal, reference.toLong)) { input =>
-        if (equal) input.size <= reference else input.size < reference
+    def atLeast[A](reference: Int, equal: Boolean = true): Validation[F[A], Unit] = size.andThen {
+      Validation.condNel(Constraint.Collection.AtLeast(equal, reference.toLong)) { input =>
+        if (equal) input >= reference else input > reference
       }
+    }
+
+    def atMost[A](reference: Int, equal: Boolean = true): Validation[F[A], Unit] = size.andThen {
+      Validation.condNel(Constraint.Collection.AtMost(equal, reference.toLong)) { input =>
+        if (equal) input <= reference else input < reference
+      }
+    }
 
     def empty[A]: Validation[F[A], Unit] = atMost(reference = 0)
 
     def nonEmpty[A]: Validation[F[A], Unit] = Validation.not(empty)
 
-    def exactly[A](expected: Int): Validation[F[A], Unit] =
-      (atLeast[A](expected, equal = true) and atMost[A](expected, equal = true)).void
+    def exactly[A](reference: Int): Validation[F[A], Unit] = size.andThen {
+      Validation.condNel(Constraint.Collection.Exactly(reference.toLong))(_ == reference)
+    }
   }
 
   abstract class seq[F[a] <: Seq[a]] extends iterable[F] {
@@ -47,22 +52,29 @@ object validations {
   }
 
   object foldable {
+    def size[F[_]: UnorderedFoldable]: Validation[F[_], Long] = Validation.lift(_.size)
+
     def atLeast[F[_]: UnorderedFoldable, A](reference: Long, equal: Boolean = true): Validation[F[A], Unit] =
-      Validation.condNel(Constraint.Collection.AtLeast(equal, reference)) { input =>
-        if (equal) input.size >= reference else input.size > reference
+      size[F].andThen {
+        Validation.condNel(Constraint.Collection.AtLeast(equal, reference)) { input =>
+          if (equal) input >= reference else input > reference
+        }
       }
 
     def atMost[F[_]: UnorderedFoldable, A](reference: Long, equal: Boolean = true): Validation[F[A], Unit] =
-      Validation.condNel(Constraint.Collection.AtMost(equal, reference)) { input =>
-        if (equal) input.size <= reference else input.size < reference
+      size[F].andThen {
+        Validation.condNel(Constraint.Collection.AtMost(equal, reference)) { input =>
+          if (equal) input <= reference else input < reference
+        }
       }
 
     def empty[F[_]: UnorderedFoldable, A]: Validation[F[A], Unit] = atMost(reference = 0)
 
     def nonEmpty[F[_]: UnorderedFoldable, A]: Validation[F[A], Unit] = Validation.not(empty)
 
-    def exactly[F[_]: UnorderedFoldable, A](expected: Long): Validation[F[A], Unit] =
-      (atLeast[F, A](expected, equal = true) and atMost[F, A](expected, equal = true)).void
+    def exactly[F[_]: UnorderedFoldable, A](reference: Long): Validation[F[A], Unit] = size[F].andThen {
+      Validation.condNel(Constraint.Collection.Exactly(reference))(_ == reference)
+    }
   }
 
   object traversable {
@@ -82,7 +94,7 @@ object validations {
       }
 
     def exactly(reference: FiniteDuration): Validation[FiniteDuration, Unit] =
-      (atLeast(reference, equal = true) and atMost(reference, equal = true)).void
+      Validation.condNel(Constraint.Duration.Exactly(reference))(_ == reference)
   }
 //
 //  object mapping {
@@ -99,15 +111,16 @@ object validations {
 
   object number {
     def equal[I: Numeric](reference: I, delta: I): Validation[I, Unit] =
-      (greaterThan(reference, equal = true, delta) and lessThan(reference, equal = true, delta)).void
+      Validation.condNel(Constraint.Number.Equal(reference.toDouble, delta.toDouble)) { input =>
+        input == reference
+      }
 
-    def equal[I](expected: I)(implicit numeric: Numeric[I]): Validation[I, Unit] =
-      equal(expected, delta = numeric.zero)
+    def equal[I](reference: I)(implicit numeric: Numeric[I]): Validation[I, Unit] =
+      equal(reference, delta = numeric.zero)
 
     def greaterThan[I: Numeric](reference: I, equal: Boolean, delta: I): Validation[I, Unit] =
-      Validation.condNel(Constraint.Number.GreaterThan(equal, reference.toDouble, delta.toDouble)) { value =>
-        if (equal) value <= reference
-        else value < reference
+      Validation.condNel(Constraint.Number.GreaterThan(equal, reference.toDouble, delta.toDouble)) { input =>
+        if (equal) input <= reference else input < reference
       }
 
     def greaterThanEqual[I](reference: I)(implicit numeric: Numeric[I]): Validation[I, Unit] =
@@ -117,9 +130,8 @@ object validations {
       greaterThan(reference, equal = false, delta = numeric.zero)
 
     def lessThan[I: Numeric](reference: I, equal: Boolean, delta: I): Validation[I, Unit] =
-      Validation.condNel(Constraint.Number.GreaterThan(equal, reference.toDouble, delta.toDouble)) { value =>
-        if (equal) value <= reference
-        else value < reference
+      Validation.condNel(Constraint.Number.GreaterThan(equal, reference.toDouble, delta.toDouble)) { input =>
+        if (equal) input <= reference else input < reference
       }
 
     def lessThanEqual[I](reference: I)(implicit numeric: Numeric[I]): Validation[I, Unit] =
@@ -172,13 +184,13 @@ object validations {
     val trim: Validation[String, String] = Validation.ask[String].map(_.trim)
 
     def atLeast(reference: Int, equal: Boolean = true): Validation[String, Unit] =
-      length.andThen(Validation.condNel(Constraint.Text.AtLeast(equal, reference)) { value =>
-        if (equal) value >= reference else value > reference
+      length.andThen(Validation.condNel(Constraint.Text.AtLeast(equal, reference)) { input =>
+        if (equal) input >= reference else input > reference
       })
 
     def atMost(reference: Int, equal: Boolean = true): Validation[String, Unit] =
-      length.andThen(Validation.condNel(Constraint.Text.AtMost(equal, reference)) { value =>
-        if (equal) value <= reference else value < reference
+      length.andThen(Validation.condNel(Constraint.Text.AtMost(equal, reference)) { input =>
+        if (equal) input <= reference else input < reference
       })
 
     val empty: Validation[String, Unit] = atMost(reference = 0)
@@ -188,7 +200,8 @@ object validations {
 
     val nonEmpty: Validation[String, Unit] = Validation.not(empty)
 
-    def exactly(expected: Int): Validation[String, Unit] = (atLeast(expected) and atMost(expected)).void
+    def exactly(reference: Int): Validation[String, Unit] =
+      length.andThen(Validation.condNel(Constraint.Text.Exactly(reference))(_ == reference))
 
     def matches(regex: Regex): Validation[String, Unit] =
       Validation.condNel(Constraint.Text.Matches(regex))(regex.matches)
@@ -200,13 +213,13 @@ object validations {
     def after(reference: Instant, equal: Boolean = true): Validation[Instant, Unit] =
       Validation.condNel(Constraint.Time.After(equal, reference.atZone(ZoneOffset.UTC))) { input =>
         val result = input.compareTo(reference)
-        if(equal) result >= 0 else result > 0
+        if (equal) result >= 0 else result > 0
       }
 
     def before(reference: Instant, equal: Boolean = true): Validation[Instant, Unit] =
       Validation.condNel(Constraint.Time.After(equal, reference.atZone(ZoneOffset.UTC))) { input =>
         val result = input.compareTo(reference)
-        if(equal) result <= 0 else result < 0
+        if (equal) result <= 0 else result < 0
       }
   }
 }

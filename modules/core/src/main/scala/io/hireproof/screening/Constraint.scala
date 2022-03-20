@@ -22,11 +22,15 @@ object Constraint {
 
   object Collection {
     final case class AtLeast(equal: Boolean, reference: Long) extends Collection {
-      override def toDebugString: String = if(equal) s"_.length >= $reference" else s"_.length > $reference"
+      override def toDebugString: String = if (equal) s"_.length >= $reference" else s"_.length > $reference"
     }
 
     final case class AtMost(equal: Boolean, reference: Long) extends Collection {
-      override def toDebugString: String = if(equal) s"_.length <= $reference" else s"_.length < $reference"
+      override def toDebugString: String = if (equal) s"_.length <= $reference" else s"_.length < $reference"
+    }
+
+    final case class Exactly(reference: Long) extends Collection {
+      override def toDebugString: String = s"_.length == $reference"
     }
 
     final case class Contains(reference: String) extends Collection {
@@ -38,23 +42,31 @@ object Constraint {
 
   object Duration {
     final case class AtLeast(equal: Boolean, reference: FiniteDuration) extends Duration {
-      override def toDebugString: String = if(equal) s"_ >= $reference" else s"_ > $reference"
+      override def toDebugString: String = if (equal) s"_ >= $reference" else s"_ > $reference"
     }
 
     final case class AtMost(equal: Boolean, reference: FiniteDuration) extends Duration {
-      override def toDebugString: String = if(equal) s"_ <= $reference" else s"_ < $reference"
+      override def toDebugString: String = if (equal) s"_ <= $reference" else s"_ < $reference"
+    }
+
+    final case class Exactly(reference: FiniteDuration) extends Duration {
+      override def toDebugString: String = s"_ == $reference"
     }
   }
 
   sealed abstract class Number extends Constraint
 
   object Number {
+    final case class Equal(reference: Double, delta: Double) extends Number {
+      override def toDebugString: String = s"_ == $reference"
+    }
+
     final case class GreaterThan(equal: Boolean, reference: Double, delta: Double) extends Number {
-      override def toDebugString: String = if(equal) s"_ >= $reference" else s"_ > $reference"
+      override def toDebugString: String = if (equal) s"_ >= $reference" else s"_ > $reference"
     }
 
     final case class LessThan(equal: Boolean, reference: Double, delta: Double) extends Number {
-      override def toDebugString: String = if(equal) s"_ <= $reference" else s"_ < $reference"
+      override def toDebugString: String = if (equal) s"_ <= $reference" else s"_ < $reference"
     }
   }
 
@@ -74,15 +86,19 @@ object Constraint {
 
   object Text {
     final case class AtLeast(equal: Boolean, reference: Int) extends Text {
-      override def toDebugString: String = if(equal) s"_.length >= $reference" else s"_.length > $reference"
+      override def toDebugString: String = if (equal) s"_.length >= $reference" else s"_.length > $reference"
     }
 
     final case class AtMost(equal: Boolean, reference: Int) extends Text {
-      override def toDebugString: String = if(equal) s"_.length <= $reference" else s"_.length < $reference"
+      override def toDebugString: String = if (equal) s"_.length <= $reference" else s"_.length < $reference"
     }
 
     final case class Equal(reference: String) extends Text {
       override def toDebugString: String = s"_ == $reference"
+    }
+
+    final case class Exactly(reference: Int) extends Text {
+      override def toDebugString: String = s"_.length == $reference"
     }
 
     final case class Matches(regex: Regex) extends Text {

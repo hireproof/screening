@@ -93,94 +93,94 @@ trait CirceInstances {
     )
   }
 
-  implicit val decoderInspectorValidationError: Decoder[Validation.Error] = Decoder.instance { cursor =>
+  implicit val decoderInspectorValidationError: Decoder[Validation.Violation] = Decoder.instance { cursor =>
     (cursor.get[String](Keys.Type), cursor.get[Option[String]](Keys.Variant)).tupled.flatMap {
       // format: off
-      case (Types.Collection, Some(Variants.AtLeast)) => decoder.reference[Long, Long](cursor).map { case (reference, actual) => Validation.Error.Collection.AtLeast(equal = false, reference, actual) }
-      case (Types.Collection, Some(Variants.AtLeastEqual)) => decoder.reference[Long, Long](cursor).map { case (reference, actual) => Validation.Error.Collection.AtLeast(equal = true, reference, actual) }
-      case (Types.Collection, Some(Variants.AtMost)) => decoder.reference[Long, Long](cursor).map { case (reference, actual) => Validation.Error.Collection.AtMost(equal = false, reference, actual) }
-      case (Types.Collection, Some(Variants.AtMostEqual)) => decoder.reference[Long, Long](cursor).map { case (reference, actual) => Validation.Error.Collection.AtMost(equal = true, reference, actual) }
-      case (Types.Collection, Some(Variants.Contains)) => decoder.reference[String, List[String]](cursor).map { case (reference, actual) => Validation.Error.Collection.Contains(reference, actual) }
-      case (Types.Collection, Some(Variants.Exactly)) => decoder.reference[Long, Long](cursor).map { case (reference, actual) => Validation.Error.Collection.Exactly(reference,actual) }
-      case (Types.Conflict, None) => decoder[String](cursor).map(Validation.Error.Conflict.apply)
-      case (Types.Date, Some(Variants.After)) => decoder.reference[Instant, Instant](cursor).map { case (reference, actual) => Validation.Error.Date.After(equal = false, reference, actual) }
-      case (Types.Date, Some(Variants.AfterEqual)) => decoder.reference[Instant, Instant](cursor).map { case (reference, actual) => Validation.Error.Date.After(equal = true, reference, actual) }
-      case (Types.Date, Some(Variants.Before)) => decoder.reference[Instant, Instant](cursor).map { case (reference, actual) => Validation.Error.Date.Before(equal = false, reference, actual) }
-      case (Types.Date, Some(Variants.BeforeEqual)) => decoder.reference[Instant, Instant](cursor).map { case (reference, actual) => Validation.Error.Date.Before(equal = true, reference, actual) }
-      case (Types.Duration, Some(Variants.AtMost)) => decoder.reference[FiniteDuration, FiniteDuration](cursor).map { case (reference, actual) => Validation.Error.Duration.AtMost(equal = false, reference, actual) }
-      case (Types.Duration, Some(Variants.AtMostEqual)) => decoder.reference[FiniteDuration, FiniteDuration](cursor).map { case (reference, actual) => Validation.Error.Duration.AtMost(equal = true, reference, actual) }
-      case (Types.Duration, Some(Variants.AtLeast)) => decoder.reference[FiniteDuration, FiniteDuration](cursor).map { case (reference, actual) => Validation.Error.Duration.AtLeast(equal = false, reference, actual) }
-      case (Types.Duration, Some(Variants.AtLeastEqual)) => decoder.reference[FiniteDuration, FiniteDuration](cursor).map { case (reference, actual) => Validation.Error.Duration.AtLeast(equal = true, reference, actual) }
-      case (Types.Duration, Some(Variants.Exactly)) => decoder.reference[FiniteDuration, FiniteDuration](cursor).map { case (reference, actual) => Validation.Error.Duration.Exactly(reference, actual) }
-      case (Types.Invalid, None) => decoder.reference[Option[String], String](cursor).map { case (reference, actual) => Validation.Error.Invalid(reference, actual) }
-      case (Types.Mapping, None) => (cursor.get[Option[Set[String]]](Keys.Reference), cursor.get[String](Keys.Actual)).mapN(Validation.Error.Mapping.apply)
-      case (Types.Missing, None) => cursor.get[Option[String]](Keys.Reference).map(Validation.Error.Missing.apply)
-      case (Types.Not, None) => cursor.get[Validation.Error](Keys.Error)
-      case (Types.Number, Some(Variants.Equal)) => decoder.reference[Double, Double](cursor).map { case (reference, actual) => Validation.Error.Number.Equal(reference, actual) }
-      case (Types.Number, Some(Variants.GreaterThan)) => decoder.reference[Double, Double](cursor).map { case (reference, actual) => Validation.Error.Number.GreaterThan(equal = false, reference, actual) }
-      case (Types.Number, Some(Variants.GreaterThanEqual)) => decoder.reference[Double, Double](cursor).map { case (reference, actual) => Validation.Error.Number.GreaterThan(equal = true, reference, actual) }
-      case (Types.Number, Some(Variants.LessThan)) => decoder.reference[Double, Double](cursor).map { case (reference, actual) => Validation.Error.Number.LessThan(equal = false, reference, actual) }
-      case (Types.Number, Some(Variants.LessThanEqual)) => decoder.reference[Double, Double](cursor).map { case (reference, actual) => Validation.Error.Number.LessThan(equal = true, reference, actual) }
-      case (Types.Parsing, None) => decoder.reference[String, String](cursor).map { case (reference, actual) => Validation.Error.Parsing(reference, actual) }
-      case (Types.Required, None) => Validation.Error.Optional.Required.asRight
-      case (Types.Text, Some(Variants.AtLeast)) => decoder.reference[Int, Int](cursor).map { case (reference, actual) => Validation.Error.Text.AtLeast(equal = false, reference, actual) }
-      case (Types.Text, Some(Variants.AtLeastEqual)) => decoder.reference[Int, Int](cursor).map { case (reference, actual) => Validation.Error.Text.AtLeast(equal = true, reference, actual) }
-      case (Types.Text, Some(Variants.AtMost)) => decoder.reference[Int, Int](cursor).map { case (reference, actual) => Validation.Error.Text.AtMost(equal = false, reference, actual) }
-      case (Types.Text, Some(Variants.AtMostEqual)) => decoder.reference[Int, Int](cursor).map { case (reference, actual) => Validation.Error.Text.AtMost(equal = true, reference, actual) }
-      case (Types.Text, Some(Variants.Email)) => decoder[String](cursor).map(Validation.Error.Text.Email.apply)
-      case (Types.Text, Some(Variants.Equal)) => decoder.reference[String, String](cursor).map { case (reference, actual) => Validation.Error.Text.Equal(reference, actual) }
-      case (Types.Text, Some(Variants.Exactly)) => decoder.reference[Int, Int](cursor).map { case (reference, actual) => Validation.Error.Text.Exactly(reference, actual) }
-      case (Types.Text, Some(Variants.Matches)) => (cursor.get[String](Keys.Regex).map(new Regex(_)), decoder[String](cursor)).mapN(Validation.Error.Text.Matches.apply)
-      case (Types.Unknown, None) => decoder[String](cursor).map(Validation.Error.Unknown.apply)
+      case (Types.Collection, Some(Variants.AtLeast)) => decoder.reference[Long, Long](cursor).map { case (reference, actual) => Validation.Violation.Collection.AtLeast(equal = false, reference, actual) }
+      case (Types.Collection, Some(Variants.AtLeastEqual)) => decoder.reference[Long, Long](cursor).map { case (reference, actual) => Validation.Violation.Collection.AtLeast(equal = true, reference, actual) }
+      case (Types.Collection, Some(Variants.AtMost)) => decoder.reference[Long, Long](cursor).map { case (reference, actual) => Validation.Violation.Collection.AtMost(equal = false, reference, actual) }
+      case (Types.Collection, Some(Variants.AtMostEqual)) => decoder.reference[Long, Long](cursor).map { case (reference, actual) => Validation.Violation.Collection.AtMost(equal = true, reference, actual) }
+      case (Types.Collection, Some(Variants.Contains)) => decoder.reference[String, List[String]](cursor).map { case (reference, actual) => Validation.Violation.Collection.Contains(reference, actual) }
+      case (Types.Collection, Some(Variants.Exactly)) => decoder.reference[Long, Long](cursor).map { case (reference, actual) => Validation.Violation.Collection.Exactly(reference,actual) }
+      case (Types.Conflict, None) => decoder[String](cursor).map(Validation.Violation.Conflict.apply)
+      case (Types.Date, Some(Variants.After)) => decoder.reference[Instant, Instant](cursor).map { case (reference, actual) => Validation.Violation.Date.After(equal = false, reference, actual) }
+      case (Types.Date, Some(Variants.AfterEqual)) => decoder.reference[Instant, Instant](cursor).map { case (reference, actual) => Validation.Violation.Date.After(equal = true, reference, actual) }
+      case (Types.Date, Some(Variants.Before)) => decoder.reference[Instant, Instant](cursor).map { case (reference, actual) => Validation.Violation.Date.Before(equal = false, reference, actual) }
+      case (Types.Date, Some(Variants.BeforeEqual)) => decoder.reference[Instant, Instant](cursor).map { case (reference, actual) => Validation.Violation.Date.Before(equal = true, reference, actual) }
+      case (Types.Duration, Some(Variants.AtMost)) => decoder.reference[FiniteDuration, FiniteDuration](cursor).map { case (reference, actual) => Validation.Violation.Duration.AtMost(equal = false, reference, actual) }
+      case (Types.Duration, Some(Variants.AtMostEqual)) => decoder.reference[FiniteDuration, FiniteDuration](cursor).map { case (reference, actual) => Validation.Violation.Duration.AtMost(equal = true, reference, actual) }
+      case (Types.Duration, Some(Variants.AtLeast)) => decoder.reference[FiniteDuration, FiniteDuration](cursor).map { case (reference, actual) => Validation.Violation.Duration.AtLeast(equal = false, reference, actual) }
+      case (Types.Duration, Some(Variants.AtLeastEqual)) => decoder.reference[FiniteDuration, FiniteDuration](cursor).map { case (reference, actual) => Validation.Violation.Duration.AtLeast(equal = true, reference, actual) }
+      case (Types.Duration, Some(Variants.Exactly)) => decoder.reference[FiniteDuration, FiniteDuration](cursor).map { case (reference, actual) => Validation.Violation.Duration.Exactly(reference, actual) }
+      case (Types.Invalid, None) => decoder.reference[Option[String], String](cursor).map { case (reference, actual) => Validation.Violation.Invalid(reference, actual) }
+      case (Types.Mapping, None) => (cursor.get[Option[Set[String]]](Keys.Reference), cursor.get[String](Keys.Actual)).mapN(Validation.Violation.Mapping.apply)
+      case (Types.Missing, None) => cursor.get[Option[String]](Keys.Reference).map(Validation.Violation.Missing.apply)
+      case (Types.Not, None) => cursor.get[Validation.Violation](Keys.Error)
+      case (Types.Number, Some(Variants.Equal)) => decoder.reference[Double, Double](cursor).map { case (reference, actual) => Validation.Violation.Number.Equal(reference, actual) }
+      case (Types.Number, Some(Variants.GreaterThan)) => decoder.reference[Double, Double](cursor).map { case (reference, actual) => Validation.Violation.Number.GreaterThan(equal = false, reference, actual) }
+      case (Types.Number, Some(Variants.GreaterThanEqual)) => decoder.reference[Double, Double](cursor).map { case (reference, actual) => Validation.Violation.Number.GreaterThan(equal = true, reference, actual) }
+      case (Types.Number, Some(Variants.LessThan)) => decoder.reference[Double, Double](cursor).map { case (reference, actual) => Validation.Violation.Number.LessThan(equal = false, reference, actual) }
+      case (Types.Number, Some(Variants.LessThanEqual)) => decoder.reference[Double, Double](cursor).map { case (reference, actual) => Validation.Violation.Number.LessThan(equal = true, reference, actual) }
+      case (Types.Parsing, None) => decoder.reference[String, String](cursor).map { case (reference, actual) => Validation.Violation.Parsing(reference, actual) }
+      case (Types.Required, None) => Validation.Violation.Optional.Required.asRight
+      case (Types.Text, Some(Variants.AtLeast)) => decoder.reference[Int, Int](cursor).map { case (reference, actual) => Validation.Violation.Text.AtLeast(equal = false, reference, actual) }
+      case (Types.Text, Some(Variants.AtLeastEqual)) => decoder.reference[Int, Int](cursor).map { case (reference, actual) => Validation.Violation.Text.AtLeast(equal = true, reference, actual) }
+      case (Types.Text, Some(Variants.AtMost)) => decoder.reference[Int, Int](cursor).map { case (reference, actual) => Validation.Violation.Text.AtMost(equal = false, reference, actual) }
+      case (Types.Text, Some(Variants.AtMostEqual)) => decoder.reference[Int, Int](cursor).map { case (reference, actual) => Validation.Violation.Text.AtMost(equal = true, reference, actual) }
+      case (Types.Text, Some(Variants.Email)) => decoder[String](cursor).map(Validation.Violation.Text.Email.apply)
+      case (Types.Text, Some(Variants.Equal)) => decoder.reference[String, String](cursor).map { case (reference, actual) => Validation.Violation.Text.Equal(reference, actual) }
+      case (Types.Text, Some(Variants.Exactly)) => decoder.reference[Int, Int](cursor).map { case (reference, actual) => Validation.Violation.Text.Exactly(reference, actual) }
+      case (Types.Text, Some(Variants.Matches)) => (cursor.get[String](Keys.Regex).map(new Regex(_)), decoder[String](cursor)).mapN(Validation.Violation.Text.Matches.apply)
+      case (Types.Unknown, None) => decoder[String](cursor).map(Validation.Violation.Unknown.apply)
       case (tpe, variant) => DecodingFailure(s"Invalid validation error: type = $tpe, variant = $variant", cursor.history).asLeft
       // format: on
     }
   }
 
-  implicit val encoderInspectorValidationError: Encoder.AsObject[Validation.Error] = Encoder.AsObject.instance {
+  implicit val encoderInspectorValidationError: Encoder.AsObject[Validation.Violation] = Encoder.AsObject.instance {
     // format: off
-    case Validation.Error.Collection.AtLeast(false, reference, actual) => encoder.reference(Types.Collection, Variants.AtLeast, reference, actual)
-    case Validation.Error.Collection.AtLeast(true, reference, actual) => encoder.reference(Types.Collection, Variants.AtLeastEqual, reference, actual)
-    case Validation.Error.Collection.AtMost(false, reference, actual) => encoder.reference(Types.Collection, Variants.AtMost, reference, actual)
-    case Validation.Error.Collection.AtMost(true, reference, actual) => encoder.reference(Types.Collection, Variants.AtMostEqual, reference, actual)
-    case Validation.Error.Collection.Contains(reference, actual) => encoder.reference(Types.Collection, Variants.Contains, reference, actual)
-    case Validation.Error.Collection.Exactly(reference, actual) => encoder.reference(Types.Collection, Variants.Exactly, reference, actual)
-    case Validation.Error.Conflict(actual) => encoder(Types.Conflict, actual)
-    case Validation.Error.Date.After(false, reference, actual) => encoder.reference(Types.Date, Variants.After, reference, actual)
-    case Validation.Error.Date.After(true, reference, actual) => encoder.reference(Types.Date, Variants.AfterEqual, reference, actual)
-    case Validation.Error.Date.Before(false, reference, actual) => encoder.reference(Types.Date, Variants.Before, reference, actual)
-    case Validation.Error.Date.Before(true, reference, actual) => encoder.reference(Types.Date, Variants.BeforeEqual, reference, actual)
-    case Validation.Error.Duration.AtLeast(false, reference, actual) => encoder.reference(Types.Duration, Variants.AtLeast, reference, actual)
-    case Validation.Error.Duration.AtLeast(true, reference, actual) => encoder.reference(Types.Duration, Variants.AtLeastEqual, reference, actual)
-    case Validation.Error.Duration.AtMost(false, reference, actual) => encoder.reference(Types.Duration, Variants.AtMost, reference, actual)
-    case Validation.Error.Duration.AtMost(true, reference, actual) => encoder.reference(Types.Duration, Variants.AtMostEqual, reference, actual)
-    case Validation.Error.Duration.Exactly(reference, actual) => encoder.reference(Types.Duration, Variants.Exactly, reference, actual)
-    case Validation.Error.Invalid(reference, actual) => encoder(Types.Invalid, actual).add(Keys.Reference, reference.asJson)
-    case Validation.Error.Mapping(references, actual) => JsonObject(Keys.Type := Types.Mapping, Keys.Reference := references, Keys.Actual := actual)
-    case Validation.Error.Missing(reference) => JsonObject(Keys.Type := Types.Missing, Keys.Reference := reference)
-    case Validation.Error.Not(error) => JsonObject(Keys.Type := Types.Not, Keys.Error := error.asJsonObject)
-    case Validation.Error.Number.Equal(reference, actual) => encoder.reference(Types.Number, Variants.Equal, reference, actual)
-    case Validation.Error.Number.GreaterThan(false, reference, actual) => encoder.reference(Types.Number, Variants.GreaterThan, reference, actual)
-    case Validation.Error.Number.GreaterThan(true, reference, actual) => encoder.reference(Types.Number, Variants.GreaterThanEqual, reference, actual)
-    case Validation.Error.Number.LessThan(false, reference, actual) => encoder.reference(Types.Number, Variants.LessThan, reference, actual)
-    case Validation.Error.Number.LessThan(true, reference, actual) => encoder.reference(Types.Number, Variants.LessThanEqual, reference, actual)
-    case Validation.Error.Optional.Required => JsonObject(Keys.Type := Types.Required)
-    case Validation.Error.Parsing(reference, actual) => encoder(Types.Parsing, actual) deepMerge JsonObject(Keys.Reference := reference)
-    case Validation.Error.Text.AtLeast(false, reference, actual) => encoder.reference(Types.Text, Variants.AtLeast, reference, actual)
-    case Validation.Error.Text.AtLeast(true, reference, actual) => encoder.reference(Types.Text, Variants.AtLeastEqual, reference, actual)
-    case Validation.Error.Text.AtMost(false, reference, actual) => encoder.reference(Types.Text, Variants.AtMost, reference, actual)
-    case Validation.Error.Text.AtMost(true, reference, actual) => encoder.reference(Types.Text, Variants.AtMostEqual, reference, actual)
-    case Validation.Error.Text.Email(actual) => encoder.variant(Types.Text, Variants.Email, actual)
-    case Validation.Error.Text.Equal(reference, actual) => encoder.reference(Types.Text, Variants.Equal, reference, actual)
-    case Validation.Error.Text.Exactly(reference, actual) => encoder.reference(Types.Text, Variants.Exactly, reference, actual)
-    case Validation.Error.Text.Matches(regex, actual) => encoder.variant(Types.Text, Variants.Matches, actual) deepMerge JsonObject(Keys.Regex := regex.toString())
-    case Validation.Error.Unknown(actual) => encoder(Types.Unknown, actual)
+    case Validation.Violation.Collection.AtLeast(false, reference, actual) => encoder.reference(Types.Collection, Variants.AtLeast, reference, actual)
+    case Validation.Violation.Collection.AtLeast(true, reference, actual) => encoder.reference(Types.Collection, Variants.AtLeastEqual, reference, actual)
+    case Validation.Violation.Collection.AtMost(false, reference, actual) => encoder.reference(Types.Collection, Variants.AtMost, reference, actual)
+    case Validation.Violation.Collection.AtMost(true, reference, actual) => encoder.reference(Types.Collection, Variants.AtMostEqual, reference, actual)
+    case Validation.Violation.Collection.Contains(reference, actual) => encoder.reference(Types.Collection, Variants.Contains, reference, actual)
+    case Validation.Violation.Collection.Exactly(reference, actual) => encoder.reference(Types.Collection, Variants.Exactly, reference, actual)
+    case Validation.Violation.Conflict(actual) => encoder(Types.Conflict, actual)
+    case Validation.Violation.Date.After(false, reference, actual) => encoder.reference(Types.Date, Variants.After, reference, actual)
+    case Validation.Violation.Date.After(true, reference, actual) => encoder.reference(Types.Date, Variants.AfterEqual, reference, actual)
+    case Validation.Violation.Date.Before(false, reference, actual) => encoder.reference(Types.Date, Variants.Before, reference, actual)
+    case Validation.Violation.Date.Before(true, reference, actual) => encoder.reference(Types.Date, Variants.BeforeEqual, reference, actual)
+    case Validation.Violation.Duration.AtLeast(false, reference, actual) => encoder.reference(Types.Duration, Variants.AtLeast, reference, actual)
+    case Validation.Violation.Duration.AtLeast(true, reference, actual) => encoder.reference(Types.Duration, Variants.AtLeastEqual, reference, actual)
+    case Validation.Violation.Duration.AtMost(false, reference, actual) => encoder.reference(Types.Duration, Variants.AtMost, reference, actual)
+    case Validation.Violation.Duration.AtMost(true, reference, actual) => encoder.reference(Types.Duration, Variants.AtMostEqual, reference, actual)
+    case Validation.Violation.Duration.Exactly(reference, actual) => encoder.reference(Types.Duration, Variants.Exactly, reference, actual)
+    case Validation.Violation.Invalid(reference, actual) => encoder(Types.Invalid, actual).add(Keys.Reference, reference.asJson)
+    case Validation.Violation.Mapping(references, actual) => JsonObject(Keys.Type := Types.Mapping, Keys.Reference := references, Keys.Actual := actual)
+    case Validation.Violation.Missing(reference) => JsonObject(Keys.Type := Types.Missing, Keys.Reference := reference)
+    case Validation.Violation.Not(error) => JsonObject(Keys.Type := Types.Not, Keys.Error := error.asJsonObject)
+    case Validation.Violation.Number.Equal(reference, actual) => encoder.reference(Types.Number, Variants.Equal, reference, actual)
+    case Validation.Violation.Number.GreaterThan(false, reference, actual) => encoder.reference(Types.Number, Variants.GreaterThan, reference, actual)
+    case Validation.Violation.Number.GreaterThan(true, reference, actual) => encoder.reference(Types.Number, Variants.GreaterThanEqual, reference, actual)
+    case Validation.Violation.Number.LessThan(false, reference, actual) => encoder.reference(Types.Number, Variants.LessThan, reference, actual)
+    case Validation.Violation.Number.LessThan(true, reference, actual) => encoder.reference(Types.Number, Variants.LessThanEqual, reference, actual)
+    case Validation.Violation.Optional.Required => JsonObject(Keys.Type := Types.Required)
+    case Validation.Violation.Parsing(reference, actual) => encoder(Types.Parsing, actual) deepMerge JsonObject(Keys.Reference := reference)
+    case Validation.Violation.Text.AtLeast(false, reference, actual) => encoder.reference(Types.Text, Variants.AtLeast, reference, actual)
+    case Validation.Violation.Text.AtLeast(true, reference, actual) => encoder.reference(Types.Text, Variants.AtLeastEqual, reference, actual)
+    case Validation.Violation.Text.AtMost(false, reference, actual) => encoder.reference(Types.Text, Variants.AtMost, reference, actual)
+    case Validation.Violation.Text.AtMost(true, reference, actual) => encoder.reference(Types.Text, Variants.AtMostEqual, reference, actual)
+    case Validation.Violation.Text.Email(actual) => encoder.variant(Types.Text, Variants.Email, actual)
+    case Validation.Violation.Text.Equal(reference, actual) => encoder.reference(Types.Text, Variants.Equal, reference, actual)
+    case Validation.Violation.Text.Exactly(reference, actual) => encoder.reference(Types.Text, Variants.Exactly, reference, actual)
+    case Validation.Violation.Text.Matches(regex, actual) => encoder.variant(Types.Text, Variants.Matches, actual) deepMerge JsonObject(Keys.Regex := regex.toString())
+    case Validation.Violation.Unknown(actual) => encoder(Types.Unknown, actual)
     // format: on
   }
 
   implicit val keyEncoderInspectorCursorHistory: KeyEncoder[List[CursorOp]] = KeyEncoder.instance(CursorOp.opsToPath)
 
-  implicit val encoderInspectorValidatingDecoderError: Encoder[Either[String, NonEmptyList[Validation.Error]]] =
+  implicit val encoderInspectorValidatingDecoderError: Encoder[Either[String, NonEmptyList[Validation.Violation]]] =
     Encoder.instance {
       case Right(errors) => Json.obj(Keys.Type := "errors", "errors" := errors)
       case Left(failure) => Json.obj(Keys.Type := "failure", "message" := failure)
@@ -192,8 +192,8 @@ trait CirceInstances {
     KeyDecoder.instance(Selection.History.parse(_).toOption)
 
   implicit val decoderInspectorCursorErrors: Decoder[Validation.Violations] =
-    Decoder[NonEmptyMap[Selection.History, NonEmptyList[Validation.Error]]].map(Validation.Violations.apply)
+    Decoder[NonEmptyMap[Selection.History, NonEmptyList[Validation.Violation]]].map(Validation.Violations.apply)
 
   implicit val encoderInspectorCursorErrors: Encoder[Validation.Violations] =
-    Encoder[NonEmptyMap[Selection.History, NonEmptyList[Validation.Error]]].contramap(_.toNem)
+    Encoder[NonEmptyMap[Selection.History, NonEmptyList[Validation.Violation]]].contramap(_.toNem)
 }

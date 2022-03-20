@@ -14,7 +14,7 @@ abstract class Validation[-I, +O] {
   /** All constraints that this `Validation` may possibly emit on validation failure */
   def constraints: Set[Constraint]
 
-  def run(input: I): ValidatedNel[Constraint, O]
+  def run(input: I): ValidatedNel[Validation.Violation, O]
 
   final def map[T](f: O => T): Validation[I, T] = Validation[I, T](constraints)(run(_).map(f))
 
@@ -22,12 +22,6 @@ abstract class Validation[-I, +O] {
     Validation(constraints ++ validation.constraints)(run(_).andThen(validation.run))
 
   final def collect[T](f: PartialFunction[O, T]): Validation[I, T] = map(f.lift).required
-
-  private def modifyConstraints(f: Set[Constraint] => Set[Constraint]): Validation[I, O] =
-    Validation(f(constraints))(run)
-
-  final def modifyConstraint(pf: PartialFunction[Constraint, Constraint]): Validation[I, O] =
-    modifyConstraints(_.map(error => pf.applyOrElse(error, (_: Constraint) => error)))
 }
 
 object Validation {
@@ -45,6 +39,8 @@ object Validation {
         validation.run(input).orElse(right.run(input))
       }
   }
+
+  final case class Violation(constrain: Constraint, actual: Any)
 
   final case class Violations(toNem: NonEmptyMap[Selection.History, NonEmptyList[Constraint]]) {
     def modifyHistory(f: Selection.History => Selection.History): Validation.Violations = Violations(toNem.mapKeys(f))
@@ -91,11 +87,11 @@ object Validation {
 
   private def apply[I, O](
       constraints: Set[Constraint]
-  )(f: I => ValidatedNel[Constraint, O]): Validation[I, O] = {
+  )(f: I => ValidatedNel[Validation.Violation, O]): Validation[I, O] = {
     val c = constraints
     new Validation[I, O] {
       override def constraints: Set[Constraint] = c
-      override def run(input: I): ValidatedNel[Constraint, O] = f(input)
+      override def run(input: I): ValidatedNel[Validation.Violation, O] = f(input)
     }
   }
 
@@ -104,7 +100,7 @@ object Validation {
   def lift[A, B](f: A => B): Validation[A, B] = Validation(Set.empty)(f(_).valid)
 
   def invalid(constraints: NonEmptyList[Constraint]): Validation[Any, Unit] =
-    Validation(constraints.toList.toSet)(_ => Validated.invalid(constraints))
+    Validation(constraints.toList.toSet)(input => Validated.invalid(constraints.map(Violation(_, input))))
 
   def invalidNel(constraint: Constraint): Validation[Any, Unit] = invalid(NonEmptyList.one(constraint))
 
@@ -114,20 +110,20 @@ object Validation {
     val constraint = Constraint.Not(validation.constraints)
     Validation(Set(constraint)) { input =>
       validation.run(input) match {
-        case Validated.Valid(_)   => constraint.invalidNel
+        case Validated.Valid(_)   => Violation(constraint, input).invalidNel
         case Validated.Invalid(_) => ().valid
       }
     }
   }
 
   def cond[I](constraints: NonEmptyList[Constraint])(f: I => Boolean): Validation[I, Unit] =
-    Validation(constraints.toList.toSet)(input => Validated.cond(f(input), (), constraints))
+    Validation(constraints.toList.toSet)(input => Validated.cond(f(input), (), constraints.map(Violation(_, input))))
 
   def condNel[I](constraint: Constraint)(f: I => Boolean): Validation[I, Unit] =
     cond(NonEmptyList.one(constraint))(f)
 
   def fromOption[I, O](constraints: NonEmptyList[Constraint])(f: I => Option[O]): Validation[I, O] =
-    Validation(constraints.toList.toSet)(input => f(input).toValid(constraints))
+    Validation(constraints.toList.toSet)(input => f(input).toValid(constraints.map(Violation(_, input))))
 
   def fromOptionNel[I, O](constraint: Constraint)(f: I => Option[O]): Validation[I, O] =
     fromOption(NonEmptyList.one(constraint))(f)
@@ -136,9 +132,11 @@ object Validation {
 
   final class CatchOnlyBuilder[T >: Null <: Throwable] {
     def apply[I, O](constraints: NonEmptyList[Constraint])(f: I => O)(implicit tag: ClassTag[T]): Validation[I, O] =
-      Validation(constraints.toList.toSet) { value =>
-        try f(value).valid
-        catch { case throwable if tag.runtimeClass.isInstance(throwable) => constraints.invalid }
+      Validation(constraints.toList.toSet) { input =>
+        try f(input).valid
+        catch {
+          case throwable if tag.runtimeClass.isInstance(throwable) => constraints.map(Violation(_, input)).invalid
+        }
       }
 
     def apply[I, O](constraint: Constraint)(f: I => O)(implicit tag: ClassTag[T]): Validation[I, O] =

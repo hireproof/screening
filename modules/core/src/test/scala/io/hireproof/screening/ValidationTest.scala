@@ -12,7 +12,7 @@ final class ValidationTest extends FunSuite {
     assert(list.atLeast(reference = 3).run(List(1, 2, 3)).isValid)
     assertEquals(
       obtained = list.atLeast(reference = 3).run(List(1)).error,
-      expected = Constraint.Collection.AtLeast(equal = true, reference = 3).some
+      expected = Validation.Violation(Constraint.Collection.AtLeast(equal = true, reference = 3), actual = 1).some
     )
   }
 
@@ -21,43 +21,46 @@ final class ValidationTest extends FunSuite {
     assert(list.atMost(reference = 3).run(List(1, 2, 3)).isValid)
     assertEquals(
       obtained = list.atMost(reference = 1).run(List(1, 2, 3)).error,
-      expected = Some(Constraint.Collection.AtMost(equal = true, reference = 1))
+      expected = Validation.Violation(Constraint.Collection.AtMost(equal = true, reference = 1), actual = 3).some
     )
   }
 
-//  test("collection.isEmpty") {
-//    assert(foldable.empty[List, Int].run(Nil).isValid)
-//    assertEquals(
-//      obtained = foldable.empty[List, Int].run(List(1, 2, 3)).error,
-//      expected = Some(Validation.Error.Collection.AtMost(equal = true, reference = 0, actual = 3))
-//    )
-//  }
-//
-//  test("collection.nonEmpty") {
-//    assert(foldable.nonEmpty[List, Int].run(List(1, 2, 3)).isValid)
-//    assertEquals(
-//      obtained = foldable.nonEmpty[List, Int].run(Nil).error,
-//      expected = Some(Validation.Error.Collection.AtLeast(equal = false, reference = 0, actual = 0))
-//    )
-//  }
-//
-//  test("collection.exactly") {
-//    assert(foldable.exactly[List, Int](expected = 3).run(List(1, 2, 3)).isValid)
-//    assert(foldable.exactly[List, Int](expected = 0).run(Nil).isValid)
-//    assertEquals(
-//      obtained = foldable.exactly[List, Int](expected = 3).run(List(1)).error,
-//      expected = Some(Validation.Error.Collection.Exactly(reference = 3, actual = 1))
-//    )
-//  }
-//
-//  test("collection.contains") {
-//    assert(foldable.contains[List, String](reference = "foobar").run(List("foo", "foobar", "bar")).isValid)
-//    assertEquals(
-//      obtained = foldable.contains[List, String](reference = "foobar").run(List("foo", "bar")).error,
-//      expected = Some(Validation.Error.Collection.Contains(reference = "foobar", actual = List("foo", "bar")))
-//    )
-//  }
-//
+  test("collection.empty") {
+    assert(list.empty.run(Nil).isValid)
+    assertEquals(
+      obtained = list.empty.run(List(1, 2, 3)).error,
+      expected = Validation.Violation(Constraint.Collection.AtMost(equal = true, reference = 0), actual = 3).some
+    )
+  }
+
+  test("collection.nonEmpty") {
+    assert(list.nonEmpty.run(List(1, 2, 3)).isValid)
+    assertEquals(
+      obtained = list.nonEmpty.run(Nil).error,
+      expected = Validation
+        .Violation(Constraint.Not(Set(Constraint.Collection.AtMost(equal = true, reference = 0))), actual = Nil)
+        .some
+    )
+  }
+
+  test("collection.exactly") {
+    assert(list.exactly(reference = 3).run(List(1, 2, 3)).isValid)
+    assert(list.exactly(reference = 0).run(Nil).isValid)
+    assertEquals(
+      obtained = list.exactly(reference = 3).run(List(1)).errors,
+      expected = List(Validation.Violation(Constraint.Collection.Exactly(reference = 3), actual = 1))
+    )
+  }
+
+  test("collection.contains") {
+    assert(list.contains(reference = "foobar").run(List("foo", "foobar", "bar")).isValid)
+    assertEquals(
+      obtained = list.contains(reference = "foobar").run(List("foo", "bar")).error,
+      expected =
+        Validation.Violation(Constraint.Collection.Contains(reference = "foobar"), actual = List("foo", "bar")).some
+    )
+  }
+
 //  test("date.after: Instant") {
 //    val sample = LocalDateTime.of(2021, 11, 29, 12, 30).toInstant(ZoneOffset.UTC)
 //
