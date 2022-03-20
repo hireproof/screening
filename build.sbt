@@ -3,7 +3,6 @@ import sbtcrossproject.CrossProject
 val Version = new {
   val Cats = "2.7.0"
   val Circe = "0.14.1"
-  val DisciplineMunit = "1.0.9"
   val Java = "11"
   val Munit = "0.7.29"
   val Scala213 = "2.13.8"
@@ -54,8 +53,6 @@ lazy val core = module(identifier = Some("core"))
     libraryDependencies ++=
       "org.typelevel" %%% "cats-core" % Version.Cats ::
         "org.scalameta" %%% "munit" % Version.Munit % "test" ::
-        "org.typelevel" %%% "cats-laws" % Version.Cats % "test" ::
-        "org.typelevel" %%% "discipline-munit" % Version.DisciplineMunit % "test" ::
         Nil
   )
   .jsSettings(
