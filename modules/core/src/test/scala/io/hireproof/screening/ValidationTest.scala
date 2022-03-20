@@ -7,52 +7,52 @@ import java.time._
 
 final class ValidationTest extends FunSuite {
   test("collection.atLeast") {
-    assert(collection.atLeast[List, Int](reference = 1).run(List(1, 2, 3)).isValid)
-    assert(collection.atLeast[List, Int](reference = 3).run(List(1, 2, 3)).isValid)
+    assert(foldable.atLeast[List, Int](reference = 1).run(List(1, 2, 3)).isValid)
+    assert(foldable.atLeast[List, Int](reference = 3).run(List(1, 2, 3)).isValid)
     assertEquals(
-      obtained = collection.atLeast[List, Int](reference = 3).run(List(1)).error,
+      obtained = foldable.atLeast[List, Int](reference = 3).run(List(1)).error,
       expected = Some(Validation.Error.Collection.AtLeast(equal = true, reference = 3, actual = 1))
     )
   }
 
   test("collection.atMost") {
-    assert(collection.atMost[List, Int](reference = 3).run(List(1)).isValid)
-    assert(collection.atMost[List, Int](reference = 3).run(List(1, 2, 3)).isValid)
+    assert(foldable.atMost[List, Int](reference = 3).run(List(1)).isValid)
+    assert(foldable.atMost[List, Int](reference = 3).run(List(1, 2, 3)).isValid)
     assertEquals(
-      obtained = collection.atMost[List, Int](reference = 1).run(List(1, 2, 3)).error,
+      obtained = foldable.atMost[List, Int](reference = 1).run(List(1, 2, 3)).error,
       expected = Some(Validation.Error.Collection.AtMost(equal = true, reference = 1, actual = 3))
     )
   }
 
   test("collection.isEmpty") {
-    assert(collection.empty[List, Int].run(Nil).isValid)
+    assert(foldable.empty[List, Int].run(Nil).isValid)
     assertEquals(
-      obtained = collection.empty[List, Int].run(List(1, 2, 3)).error,
+      obtained = foldable.empty[List, Int].run(List(1, 2, 3)).error,
       expected = Some(Validation.Error.Collection.AtMost(equal = true, reference = 0, actual = 3))
     )
   }
 
   test("collection.nonEmpty") {
-    assert(collection.nonEmpty[List, Int].run(List(1, 2, 3)).isValid)
+    assert(foldable.nonEmpty[List, Int].run(List(1, 2, 3)).isValid)
     assertEquals(
-      obtained = collection.nonEmpty[List, Int].run(Nil).error,
+      obtained = foldable.nonEmpty[List, Int].run(Nil).error,
       expected = Some(Validation.Error.Collection.AtLeast(equal = false, reference = 0, actual = 0))
     )
   }
 
   test("collection.exactly") {
-    assert(collection.exactly[List, Int](expected = 3).run(List(1, 2, 3)).isValid)
-    assert(collection.exactly[List, Int](expected = 0).run(Nil).isValid)
+    assert(foldable.exactly[List, Int](expected = 3).run(List(1, 2, 3)).isValid)
+    assert(foldable.exactly[List, Int](expected = 0).run(Nil).isValid)
     assertEquals(
-      obtained = collection.exactly[List, Int](expected = 3).run(List(1)).error,
+      obtained = foldable.exactly[List, Int](expected = 3).run(List(1)).error,
       expected = Some(Validation.Error.Collection.Exactly(reference = 3, actual = 1))
     )
   }
 
   test("collection.contains") {
-    assert(collection.contains[List, String](reference = "foobar").run(List("foo", "foobar", "bar")).isValid)
+    assert(foldable.contains[List, String](reference = "foobar").run(List("foo", "foobar", "bar")).isValid)
     assertEquals(
-      obtained = collection.contains[List, String](reference = "foobar").run(List("foo", "bar")).error,
+      obtained = foldable.contains[List, String](reference = "foobar").run(List("foo", "bar")).error,
       expected = Some(Validation.Error.Collection.Contains(reference = "foobar", actual = List("foo", "bar")))
     )
   }
@@ -136,7 +136,7 @@ final class ValidationTest extends FunSuite {
       expected = Some(Validation.Error.Number.Equal(reference = 0.3d, actual = 0.1d + 0.2d))
     )
 
-    assert(number.equal(expected = 0.3d, delta = 0.01d).run(0.1d + 0.2d).isValid)
+    assert(number.equal(reference = 0.3d, delta = 0.01d).run(0.1d + 0.2d).isValid)
   }
 
   test("parsing.bigDecimal") {

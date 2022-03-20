@@ -47,7 +47,7 @@ lazy val root = module(identifier = None)
         Nil
     }
   )
-  .aggregate(core, generic, jsonCirce)
+  .aggregate(core, jsonCirce)
 
 lazy val core = module(identifier = Some("core"))
   .settings(
@@ -63,8 +63,6 @@ lazy val core = module(identifier = Some("core"))
       "io.github.cquiroz" %%% "scala-java-time" % Version.ScalaJavaTime % "test" ::
         Nil
   )
-
-lazy val generic = module(identifier = Some("generic")).dependsOn(core % "compile->compile;test->test")
 
 lazy val jsonCirce = module(identifier = Some("json-circe"))
   .settings(

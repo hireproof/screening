@@ -191,9 +191,9 @@ trait CirceInstances {
   implicit val keyDecoderInspectorSelectionHistory: KeyDecoder[Selection.History] =
     KeyDecoder.instance(Selection.History.parse(_).toOption)
 
-  implicit val decoderInspectorCursorErrors: Decoder[Validation.Errors] =
-    Decoder[NonEmptyMap[Selection.History, NonEmptyList[Validation.Error]]].map(Validation.Errors.apply)
+  implicit val decoderInspectorCursorErrors: Decoder[Validation.Violations] =
+    Decoder[NonEmptyMap[Selection.History, NonEmptyList[Validation.Error]]].map(Validation.Violations.apply)
 
-  implicit val encoderInspectorCursorErrors: Encoder[Validation.Errors] =
+  implicit val encoderInspectorCursorErrors: Encoder[Validation.Violations] =
     Encoder[NonEmptyMap[Selection.History, NonEmptyList[Validation.Error]]].contramap(_.toNem)
 }
