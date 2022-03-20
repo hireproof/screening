@@ -124,50 +124,25 @@ trait CirceInstances {
     // format: on
   }
 
-  implicit val decoderError: Decoder[Error] = {
-    def decode(json: Json): Any = json.fold(
-      jsonNull = None,
-      jsonBoolean = identity,
-      jsonNumber = number => number.toInt.orElse(number.toLong).getOrElse(number.toDouble),
-      jsonString = identity,
-      jsonArray = _.map(decode).toList,
-      jsonObject = identity
-    )
-
-    Decoder.instance { cursor =>
-      cursor.get[String](Keys.Type).flatMap {
-        case Types.Conflict => cursor.get[String](Keys.Actual).map(Error.Conflict)
-        case Types.Invalid =>
-          (cursor.get[Option[String]](Keys.Reference), cursor.get[String](Keys.Actual)).mapN(Error.Invalid)
-        case Types.Missing => cursor.get[Option[String]](Keys.Reference).map(Error.Missing)
-        case Types.Unknown => cursor.get[String](Keys.Actual).map(Error.Unknown)
-        case _ => (cursor.as[Constraint], cursor.get[Json](Keys.Actual).map(decode)).mapN(Error.BrokenConstraint)
-      }
+  implicit val decoderError: Decoder[Error] = Decoder.instance { cursor =>
+    cursor.get[String](Keys.Type).flatMap {
+      case Types.Conflict => cursor.get[String](Keys.Actual).map(Error.Conflict)
+      case Types.Invalid =>
+        (cursor.get[Option[String]](Keys.Reference), cursor.get[String](Keys.Actual)).mapN(Error.Invalid)
+      case Types.Missing => cursor.get[Option[String]](Keys.Reference).map(Error.Missing)
+      case Types.Unknown => cursor.get[String](Keys.Actual).map(Error.Unknown)
+      case _             => (cursor.as[Constraint], cursor.get[String](Keys.Actual)).mapN(Error.BrokenConstraint)
     }
   }
 
-  implicit val encoderError: Encoder.AsObject[Error] = {
-    def encode(value: Any): Json = value match {
-      case value: BigDecimal  => Json.fromBigDecimal(value)
-      case value: Boolean     => Json.fromBoolean(value)
-      case value: Double      => Json.fromDoubleOrString(value)
-      case value: Float       => Json.fromFloatOrString(value)
-      case value: Int         => Json.fromInt(value)
-      case value: Long        => Json.fromLong(value)
-      case value: Iterable[_] => value.map(encode).asJson
-      case value: Option[_]   => value.map(encode).asJson
-      case value              => Json.fromString(value.toString)
-    }
-
-    Encoder.AsObject.instance {
-      case Error.BrokenConstraint(constraint, actual) =>
-        constraint.asJsonObject deepMerge JsonObject(Keys.Actual := encode(actual))
-      case Error.Conflict(actual) => JsonObject(Keys.Type := Types.Conflict, Keys.Actual := actual)
-      case Error.Invalid(reference, actual) =>
-        JsonObject(Keys.Type := Types.Invalid, Keys.Reference := reference, Keys.Actual := actual)
-      case Error.Missing(reference) => JsonObject(Keys.Type := Types.Missing, Keys.Reference := reference)
-      case Error.Unknown(actual) => JsonObject(Keys.Type := Types.Unknown, Keys.Actual := actual)
-    }
+  implicit val encoderError: Encoder.AsObject[Error] = Encoder.AsObject.instance {
+    case Error.BrokenConstraint(constraint, actual) =>
+      constraint.asJsonObject deepMerge JsonObject(Keys.Actual := actual)
+    case Error.Conflict(actual) => JsonObject(Keys.Type := Types.Conflict, Keys.Actual := actual)
+    case Error.Invalid(reference, actual) =>
+      JsonObject(Keys.Type := Types.Invalid, Keys.Reference := reference, Keys.Actual := actual)
+    case Error.Missing(reference) => JsonObject(Keys.Type := Types.Missing, Keys.Reference := reference)
+    case Error.Unknown(actual)    => JsonObject(Keys.Type := Types.Unknown, Keys.Actual := actual)
   }
 
   implicit val keyEncoderCursorHistory: KeyEncoder[List[CursorOp]] = KeyEncoder.instance(CursorOp.opsToPath)

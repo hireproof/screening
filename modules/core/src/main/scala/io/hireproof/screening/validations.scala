@@ -39,7 +39,7 @@ object validations {
 
   abstract class seq[F[a] <: Seq[a]] extends iterable[F] {
     def contains[A: Show](reference: A): Validation[F[A], Unit] =
-      Validation.condNel(Constraint.Collection.Contains(reference.show))(_.contains(reference))
+      Validation.condNel[F[A]](Constraint.Collection.Contains(reference.show))(_.contains(reference))
   }
 
   object seq extends seq[Seq]
@@ -79,7 +79,7 @@ object validations {
 
   object traversable {
     def contains[F[_]: Traverse, A: Eq: Show](reference: A): Validation[F[A], Unit] =
-      Validation.condNel(Constraint.Collection.Contains(reference.show))(_.contains_(reference))
+      Validation.condNel[F[A]](Constraint.Collection.Contains(reference.show))(_.contains_(reference))
   }
 
   object duration {
@@ -102,7 +102,7 @@ object validations {
 
   object number {
     def equal[I: Numeric](reference: I, delta: I): Validation[I, Unit] =
-      Validation.condNel(Constraint.Number.Equal(reference.toDouble, delta.toDouble)) { input =>
+      Validation.condNel[I](Constraint.Number.Equal(reference.toDouble, delta.toDouble)) { input =>
         (reference - input).abs <= delta
       }
 
@@ -110,7 +110,7 @@ object validations {
       equal(reference, delta = numeric.zero)
 
     def greaterThan[I: Numeric](reference: I, equal: Boolean, delta: I): Validation[I, Unit] =
-      Validation.condNel(Constraint.Number.GreaterThan(equal, reference.toDouble, delta.toDouble)) { input =>
+      Validation.condNel[I](Constraint.Number.GreaterThan(equal, reference.toDouble, delta.toDouble)) { input =>
         if (equal) input - reference >= -delta else input - reference > -delta
       }
 
@@ -121,7 +121,7 @@ object validations {
       greaterThan(reference, equal = false, delta = numeric.zero)
 
     def lessThan[I: Numeric](reference: I, equal: Boolean, delta: I): Validation[I, Unit] =
-      Validation.condNel(Constraint.Number.LessThan(equal, reference.toDouble, delta.toDouble)) { input =>
+      Validation.condNel[I](Constraint.Number.LessThan(equal, reference.toDouble, delta.toDouble)) { input =>
         if (equal) reference - input >= -delta else reference - input > -delta
       }
 

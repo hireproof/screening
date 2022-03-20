@@ -5,7 +5,7 @@ sealed abstract class Error extends Product with Serializable {
 }
 
 object Error {
-  final case class BrokenConstraint(constraint: Constraint, actual: Any) extends Error {
+  final case class BrokenConstraint(constraint: Constraint, actual: String) extends Error {
     override def constraints: Set[Constraint] = Set(constraint)
   }
 
@@ -25,5 +25,5 @@ object Error {
     override def constraints: Set[Constraint] = Set.empty
   }
 
-  def fromAny(constraint: Constraint, actual: Any): Error = BrokenConstraint(constraint, actual)
+  def fromAny(constraint: Constraint, actual: Any): Error = BrokenConstraint(constraint, actual.toString)
 }
