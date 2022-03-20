@@ -14,7 +14,7 @@ abstract class Validation[-I, +O] {
   /** All constraints that this `Validation` may possibly emit on validation failure */
   def constraints: Set[Constraint]
 
-  def run(input: I): ValidatedNel[Validation.Violation, O]
+  def run(input: I): ValidatedNel[Constraint, O]
 
   final def map[T](f: O => T): Validation[I, T] = Validation[I, T](constraints)(run(_).map(f))
 
@@ -41,8 +41,6 @@ object Validation {
         validation.run(input).orElse(right.run(input))
       }
   }
-
-  final case class Violation(constrain: Constraint, actual: Any)
 
   final case class Violations(toNem: NonEmptyMap[Selection.History, NonEmptyList[Constraint]]) {
     def modifyHistory(f: Selection.History => Selection.History): Validation.Violations = Violations(toNem.mapKeys(f))
@@ -89,11 +87,11 @@ object Validation {
 
   private def apply[I, O](
       constraints: Set[Constraint]
-  )(f: I => ValidatedNel[Validation.Violation, O]): Validation[I, O] = {
+  )(f: I => ValidatedNel[Constraint, O]): Validation[I, O] = {
     val c = constraints
     new Validation[I, O] {
       override def constraints: Set[Constraint] = c
-      override def run(input: I): ValidatedNel[Validation.Violation, O] = f(input)
+      override def run(input: I): ValidatedNel[Constraint, O] = f(input)
     }
   }
 
@@ -102,20 +100,20 @@ object Validation {
   def lift[A, B](f: A => B): Validation[A, B] = Validation(Set.empty)(f(_).valid)
 
   def invalid(constraints: NonEmptyList[Constraint]): Validation[Any, Unit] =
-    Validation(constraints.toList.toSet)(input => Validated.invalid(constraints.map(Violation(_, input))))
+    Validation(constraints.toList.toSet)(_ => Validated.invalid(constraints))
 
   def invalidNel(constraint: Constraint): Validation[Any, Unit] = invalid(NonEmptyList.one(constraint))
 
   def ask[A]: Validation[A, A] = Validation(Set.empty)(Validated.validNel)
 
   def cond[I](constraints: NonEmptyList[Constraint])(f: I => Boolean): Validation[I, Unit] =
-    Validation(constraints.toList.toSet)(input => Validated.cond(f(input), (), constraints.map(Violation(_, input))))
+    Validation(constraints.toList.toSet)(input => Validated.cond(f(input), (), constraints))
 
   def condNel[I](constraint: Constraint)(f: I => Boolean): Validation[I, Unit] =
     cond(NonEmptyList.one(constraint))(f)
 
   def fromOption[I, O](constraints: NonEmptyList[Constraint])(f: I => Option[O]): Validation[I, O] =
-    Validation(constraints.toList.toSet)(input => f(input).toValid(constraints.map(Violation(_, input))))
+    Validation(constraints.toList.toSet)(input => f(input).toValid(constraints))
 
   def fromOptionNel[I, O](constraint: Constraint)(f: I => Option[O]): Validation[I, O] =
     fromOption(NonEmptyList.one(constraint))(f)
@@ -127,7 +125,7 @@ object Validation {
       Validation(constraints.toList.toSet) { input =>
         try f(input).valid
         catch {
-          case throwable if tag.runtimeClass.isInstance(throwable) => constraints.map(Violation(_, input)).invalid
+          case throwable if tag.runtimeClass.isInstance(throwable) => constraints.invalid
         }
       }
 
