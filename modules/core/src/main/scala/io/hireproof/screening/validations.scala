@@ -30,7 +30,7 @@ object validations {
 
     def empty[A]: Validation[F[A], Unit] = atMost(reference = 0)
 
-    def nonEmpty[A]: Validation[F[A], Unit] = Validation.not(empty)
+    def nonEmpty[A]: Validation[F[A], Unit] = atLeast(reference = 1)
 
     def exactly[A](reference: Int): Validation[F[A], Unit] = size.andThen {
       Validation.condNel(Constraint.Collection.Exactly(reference.toLong))(_ == reference)
@@ -70,7 +70,7 @@ object validations {
 
     def empty[F[_]: UnorderedFoldable, A]: Validation[F[A], Unit] = atMost(reference = 0)
 
-    def nonEmpty[F[_]: UnorderedFoldable, A]: Validation[F[A], Unit] = Validation.not(empty)
+    def nonEmpty[F[_]: UnorderedFoldable, A]: Validation[F[A], Unit] = atLeast(reference = 1)
 
     def exactly[F[_]: UnorderedFoldable, A](reference: Long): Validation[F[A], Unit] = size[F].andThen {
       Validation.condNel(Constraint.Collection.Exactly(reference))(_ == reference)
@@ -112,7 +112,7 @@ object validations {
   object number {
     def equal[I: Numeric](reference: I, delta: I): Validation[I, Unit] =
       Validation.condNel(Constraint.Number.Equal(reference.toDouble, delta.toDouble)) { input =>
-        input == reference
+        (reference - input).abs <= delta
       }
 
     def equal[I](reference: I)(implicit numeric: Numeric[I]): Validation[I, Unit] =
@@ -120,7 +120,7 @@ object validations {
 
     def greaterThan[I: Numeric](reference: I, equal: Boolean, delta: I): Validation[I, Unit] =
       Validation.condNel(Constraint.Number.GreaterThan(equal, reference.toDouble, delta.toDouble)) { input =>
-        if (equal) input <= reference else input < reference
+        if (equal) input - reference >= -delta else input - reference > -delta
       }
 
     def greaterThanEqual[I](reference: I)(implicit numeric: Numeric[I]): Validation[I, Unit] =
@@ -130,8 +130,8 @@ object validations {
       greaterThan(reference, equal = false, delta = numeric.zero)
 
     def lessThan[I: Numeric](reference: I, equal: Boolean, delta: I): Validation[I, Unit] =
-      Validation.condNel(Constraint.Number.GreaterThan(equal, reference.toDouble, delta.toDouble)) { input =>
-        if (equal) input <= reference else input < reference
+      Validation.condNel(Constraint.Number.LessThan(equal, reference.toDouble, delta.toDouble)) { input =>
+        if (equal) reference - input >= -delta else reference - input > -delta
       }
 
     def lessThanEqual[I](reference: I)(implicit numeric: Numeric[I]): Validation[I, Unit] =
@@ -198,7 +198,7 @@ object validations {
     def equal(reference: String): Validation[String, Unit] =
       Validation.condNel(Constraint.Text.Equal(reference))(_ == reference)
 
-    val nonEmpty: Validation[String, Unit] = Validation.not(empty)
+    val nonEmpty: Validation[String, Unit] = atLeast(reference = 1)
 
     def exactly(reference: Int): Validation[String, Unit] =
       length.andThen(Validation.condNel(Constraint.Text.Exactly(reference))(_ == reference))
@@ -217,7 +217,7 @@ object validations {
       }
 
     def before(reference: Instant, equal: Boolean = true): Validation[Instant, Unit] =
-      Validation.condNel(Constraint.Time.After(equal, reference.atZone(ZoneOffset.UTC))) { input =>
+      Validation.condNel(Constraint.Time.Before(equal, reference.atZone(ZoneOffset.UTC))) { input =>
         val result = input.compareTo(reference)
         if (equal) result <= 0 else result < 0
       }

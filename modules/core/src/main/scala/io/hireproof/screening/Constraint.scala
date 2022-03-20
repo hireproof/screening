@@ -9,10 +9,6 @@ sealed abstract class Constraint extends Product with Serializable {
 }
 
 object Constraint {
-  final case class Not(constraints: Set[Constraint]) extends Constraint {
-    override def toDebugString: String = s"!(${constraints.map(_.toDebugString).mkString(" && ")})"
-  }
-
   final case class Or(left: Set[Constraint], right: Set[Constraint]) extends Constraint {
     override def toDebugString: String =
       s"(${left.map(_.toDebugString).mkString(" && ")}) || (${right.map(_.toDebugString).mkString(" && ")})"

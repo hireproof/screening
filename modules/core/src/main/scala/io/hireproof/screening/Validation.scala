@@ -22,6 +22,8 @@ abstract class Validation[-I, +O] {
     Validation(constraints ++ validation.constraints)(run(_).andThen(validation.run))
 
   final def collect[T](f: PartialFunction[O, T]): Validation[I, T] = map(f.lift).required
+
+  def toDebugString: String = constraints.map(_.toDebugString).mkString(" && ")
 }
 
 object Validation {
@@ -105,16 +107,6 @@ object Validation {
   def invalidNel(constraint: Constraint): Validation[Any, Unit] = invalid(NonEmptyList.one(constraint))
 
   def ask[A]: Validation[A, A] = Validation(Set.empty)(Validated.validNel)
-
-  def not[I](validation: Validation[I, Unit]): Validation[I, Unit] = {
-    val constraint = Constraint.Not(validation.constraints)
-    Validation(Set(constraint)) { input =>
-      validation.run(input) match {
-        case Validated.Valid(_)   => Violation(constraint, input).invalidNel
-        case Validated.Invalid(_) => ().valid
-      }
-    }
-  }
 
   def cond[I](constraints: NonEmptyList[Constraint])(f: I => Boolean): Validation[I, Unit] =
     Validation(constraints.toList.toSet)(input => Validated.cond(f(input), (), constraints.map(Violation(_, input))))
