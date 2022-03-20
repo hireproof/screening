@@ -123,9 +123,9 @@ trait CirceInstances {
   implicit val keyDecoderSelectionHistory: KeyDecoder[Selection.History] =
     KeyDecoder.instance(Selection.History.parse(_).toOption)
 
-  implicit val decoderViolations: Decoder[Violations] =
-    Decoder[NonEmptyMap[Selection.History, NonEmptyList[Constraint]]].map(Violations.apply)
+  implicit def decoderViolations[A: Decoder]: Decoder[Violations[A]] =
+    Decoder[NonEmptyMap[Selection.History, NonEmptyList[A]]].map(Violations.apply)
 
-  implicit val encoderViolations: Encoder[Violations] =
-    Encoder[NonEmptyMap[Selection.History, NonEmptyList[Constraint]]].contramap(_.toNem)
+  implicit def encoderViolations[A: Encoder]: Encoder[Violations[A]] =
+    Encoder[NonEmptyMap[Selection.History, NonEmptyList[A]]].contramap(_.toNem)
 }
