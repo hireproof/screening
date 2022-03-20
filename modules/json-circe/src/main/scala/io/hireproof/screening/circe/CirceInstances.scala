@@ -2,9 +2,9 @@ package io.hireproof.screening.circe
 
 import cats.data.{NonEmptyList, NonEmptyMap}
 import cats.syntax.all._
-import io.circe._
+import io.circe.{Error => _, _}
 import io.circe.syntax._
-import io.hireproof.screening.{Constraint, Selection, Violations}
+import io.hireproof.screening.{Constraint, Error, Selection, Violations}
 
 import java.time.ZonedDateTime
 import java.util.concurrent.TimeUnit
@@ -13,6 +13,7 @@ import scala.util.matching.Regex
 
 trait CirceInstances {
   private object Keys {
+    val Actual = "actual"
     val Equal = "equal"
     val Delta = "delta"
     val Variant = "variant"
@@ -25,9 +26,12 @@ trait CirceInstances {
 
   private object Types {
     val Collection = "collection"
+    val Conflict = "conflict"
     val Optional = "optional"
     val Time = "time"
     val Duration = "duration"
+    val Invalid = "invalid"
+    val Missing = "missing"
     val Number = "number"
     val OneOf = "oneOf"
     val Or = "or"
@@ -117,6 +121,50 @@ trait CirceInstances {
     case Constraint.Time.After(equal, reference) => JsonObject(Keys.Type := Types.Time, Keys.Variant := Variants.After, Keys.Equal := equal, Keys.Reference := reference)
     case Constraint.Time.Before(equal, reference) => JsonObject(Keys.Type := Types.Time, Keys.Variant := Variants.Before, Keys.Equal := equal, Keys.Reference := reference)
     // format: on
+  }
+
+  implicit val decoderError: Decoder[Error] = {
+    def decode(json: Json): Any = json.fold(
+      jsonNull = None,
+      jsonBoolean = identity,
+      jsonNumber = number => number.toInt.orElse(number.toLong).getOrElse(number.toDouble),
+      jsonString = identity,
+      jsonArray = _.map(decode).toList,
+      jsonObject = identity
+    )
+
+    Decoder.instance { cursor =>
+      cursor.get[String](Keys.Type).flatMap {
+        case Types.Conflict => cursor.get[String](Keys.Actual).map(Error.Conflict)
+        case Types.Invalid =>
+          (cursor.get[Option[String]](Keys.Reference), cursor.get[String](Keys.Actual)).mapN(Error.Invalid)
+        case Types.Missing => cursor.get[Option[String]](Keys.Reference).map(Error.Missing)
+        case _ => (cursor.as[Constraint], cursor.get[Json](Keys.Actual).map(decode)).mapN(Error.BrokenConstraint)
+      }
+    }
+  }
+
+  implicit val encoderError: Encoder.AsObject[Error] = {
+    def encode(value: Any): Json = value match {
+      case value: BigDecimal  => Json.fromBigDecimal(value)
+      case value: Boolean     => Json.fromBoolean(value)
+      case value: Double      => Json.fromDoubleOrString(value)
+      case value: Float       => Json.fromFloatOrString(value)
+      case value: Int         => Json.fromInt(value)
+      case value: Long        => Json.fromLong(value)
+      case value: Iterable[_] => value.map(encode).asJson
+      case value: Option[_]   => value.map(encode).asJson
+      case value              => Json.fromString(value.toString)
+    }
+
+    Encoder.AsObject.instance {
+      case Error.BrokenConstraint(constraint, actual) =>
+        constraint.asJsonObject deepMerge JsonObject(Keys.Actual := encode(actual))
+      case Error.Conflict(actual) => JsonObject(Keys.Type := Types.Conflict, Keys.Actual := actual)
+      case Error.Invalid(reference, actual) =>
+        JsonObject(Keys.Type := Types.Invalid, Keys.Reference := reference, Keys.Actual := actual)
+      case Error.Missing(reference) => JsonObject(Keys.Type := Types.Missing, Keys.Reference := reference)
+    }
   }
 
   implicit val keyEncoderCursorHistory: KeyEncoder[List[CursorOp]] = KeyEncoder.instance(CursorOp.opsToPath)
