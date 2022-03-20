@@ -37,6 +37,7 @@ trait CirceInstances {
     val Or = "or"
     val Parsing = "parsing"
     val Text = "text"
+    val Unknown = "unknown"
   }
 
   private object Variants {
@@ -139,6 +140,7 @@ trait CirceInstances {
         case Types.Invalid =>
           (cursor.get[Option[String]](Keys.Reference), cursor.get[String](Keys.Actual)).mapN(Error.Invalid)
         case Types.Missing => cursor.get[Option[String]](Keys.Reference).map(Error.Missing)
+        case Types.Unknown => cursor.get[String](Keys.Actual).map(Error.Unknown)
         case _ => (cursor.as[Constraint], cursor.get[Json](Keys.Actual).map(decode)).mapN(Error.BrokenConstraint)
       }
     }
@@ -164,6 +166,7 @@ trait CirceInstances {
       case Error.Invalid(reference, actual) =>
         JsonObject(Keys.Type := Types.Invalid, Keys.Reference := reference, Keys.Actual := actual)
       case Error.Missing(reference) => JsonObject(Keys.Type := Types.Missing, Keys.Reference := reference)
+      case Error.Unknown(actual) => JsonObject(Keys.Type := Types.Unknown, Keys.Actual := actual)
     }
   }
 

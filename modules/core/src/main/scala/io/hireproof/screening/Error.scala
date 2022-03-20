@@ -21,5 +21,9 @@ object Error {
     override def constraints: Set[Constraint] = Set.empty
   }
 
+  final case class Unknown(actual: String) extends Error {
+    override def constraints: Set[Constraint] = Set.empty
+  }
+
   def fromAny(constraint: Constraint, actual: Any): Error = BrokenConstraint(constraint, actual)
 }
