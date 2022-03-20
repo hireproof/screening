@@ -28,8 +28,7 @@ object Violations {
   def one[A](history: Selection.History, values: NonEmptyList[A]): Violations[A] =
     Violations(NonEmptyMap.one(history, values))
 
-  def oneNel[A](history: Selection.History, value: A): Violations[A] =
-    one(history, NonEmptyList.one(value))
+  def oneNel[A](history: Selection.History, value: A): Violations[A] = one(history, NonEmptyList.one(value))
 
   def root[A](errors: NonEmptyList[A]): Violations[A] = one(Selection.History.Root, errors)
 
