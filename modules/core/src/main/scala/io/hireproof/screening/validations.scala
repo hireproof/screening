@@ -70,14 +70,6 @@ object validations {
       Validation.condNel(Constraint.Collection.Contains(reference.show))(_.contains_(reference))
   }
 
-  object time {
-    def after(reference: Instant, equal: Boolean = true): Validation[Instant, Unit] =
-      Validation.condNel(Constraint.Time.After(equal, reference.atZone(ZoneOffset.UTC)))(_.isAfter(reference))
-
-    def before(reference: Instant, equal: Boolean = true): Validation[Instant, Unit] =
-      Validation.condNel(Constraint.Time.After(equal, reference.atZone(ZoneOffset.UTC)))(_.isBefore(reference))
-  }
-
   object duration {
     def atLeast(reference: FiniteDuration, equal: Boolean = true): Validation[FiniteDuration, Unit] =
       Validation.condNel(Constraint.Duration.AtLeast(equal, reference)) { input =>
@@ -196,15 +188,25 @@ object validations {
 
     val nonEmpty: Validation[String, Unit] = Validation.not(empty)
 
-    def exactly(expected: Int): Validation[String, Unit] =
-      (atLeast(expected) and atMost(expected)).void.modifyConstraint {
-        case Constraint.Text.AtLeast(true, reference) => Constraint.Text.Exactly(reference)
-        case Constraint.Text.AtMost(true, reference)  => Constraint.Text.Exactly(reference)
-      }
+    def exactly(expected: Int): Validation[String, Unit] = (atLeast(expected) and atMost(expected)).void
 
     def matches(regex: Regex): Validation[String, Unit] =
       Validation.condNel(Constraint.Text.Matches(regex))(regex.matches)
 
     val required: Validation[String, String] = trim.andThen(nonEmpty.tap)
+  }
+
+  object time {
+    def after(reference: Instant, equal: Boolean = true): Validation[Instant, Unit] =
+      Validation.condNel(Constraint.Time.After(equal, reference.atZone(ZoneOffset.UTC))) { input =>
+        val result = input.compareTo(reference)
+        if(equal) result >= 0 else result > 0
+      }
+
+    def before(reference: Instant, equal: Boolean = true): Validation[Instant, Unit] =
+      Validation.condNel(Constraint.Time.After(equal, reference.atZone(ZoneOffset.UTC))) { input =>
+        val result = input.compareTo(reference)
+        if(equal) result <= 0 else result < 0
+      }
   }
 }
