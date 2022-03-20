@@ -2,7 +2,7 @@
 # Instead, run blowoutGenerate after making the desired changes to your build definition.
 version: 2
 updates:
-  package-ecosystem: github-actions
+- package-ecosystem: github-actions
   directory: /
   schedule:
     interval: daily
