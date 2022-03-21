@@ -1,120 +1,97 @@
 package io.hireproof.screening
 
+import cats.Show
+import cats.syntax.all._
+
 import java.time.ZonedDateTime
+import scala.Numeric.Implicits._
 import scala.concurrent.duration.FiniteDuration
 import scala.util.matching.Regex
 
-sealed abstract class Constraint extends Product with Serializable {
-  def toDebugString: String
-}
+final case class Constraint(
+    identifier: Constraint.Identifier,
+    reference: Option[Reference],
+    delta: Option[Constraint.Delta],
+    equal: Option[Boolean]
+)
 
 object Constraint {
-  final case class Or(left: Set[Constraint], right: Set[Constraint]) extends Constraint {
-    override def toDebugString: String =
-      s"(${left.map(_.toDebugString).mkString(" && ")}) || (${right.map(_.toDebugString).mkString(" && ")})"
+  final case class Identifier(value: String) extends AnyVal
+
+  object Identifier {
+    val After: Constraint.Identifier = Identifier("after")
+    val Before: Constraint.Identifier = Identifier("before")
+    val Contains: Constraint.Identifier = Identifier("contains")
+    val GreaterThan: Constraint.Identifier = Identifier("greaterThan")
+    val LessThan: Constraint.Identifier = Identifier("lessThan")
+    val Equal: Constraint.Identifier = Identifier("equal")
+    val Matches: Constraint.Identifier = Identifier("matches")
+    val OneOf: Constraint.Identifier = Identifier("oneOf")
+    val Required: Constraint.Identifier = Identifier("required")
   }
 
-  sealed abstract class Collection extends Constraint
+  final case class Delta(value: String) extends AnyVal
 
-  object Collection {
-    final case class AtLeast(equal: Boolean, reference: Long) extends Collection {
-      override def toDebugString: String = if (equal) s"_.length >= $reference" else s"_.length > $reference"
-    }
+  object Delta {
+    def fromShow[A: Show](value: A): Delta = Delta(value.show)
 
-    final case class AtMost(equal: Boolean, reference: Long) extends Collection {
-      override def toDebugString: String = if (equal) s"_.length <= $reference" else s"_.length < $reference"
-    }
-
-    final case class Exactly(reference: Long) extends Collection {
-      override def toDebugString: String = s"_.length == $reference"
-    }
-
-    final case class Contains(reference: String) extends Collection {
-      override def toDebugString: String = s"_.contains($reference)"
-    }
+    def fromNumeric[A: Numeric](value: A): Delta = fromShow(value.toDouble)
   }
 
-  sealed abstract class Duration extends Constraint
-
-  object Duration {
-    final case class AtLeast(equal: Boolean, reference: FiniteDuration) extends Duration {
-      override def toDebugString: String = if (equal) s"_ >= $reference" else s"_ > $reference"
-    }
-
-    final case class AtMost(equal: Boolean, reference: FiniteDuration) extends Duration {
-      override def toDebugString: String = if (equal) s"_ <= $reference" else s"_ < $reference"
-    }
-
-    final case class Exactly(reference: FiniteDuration) extends Duration {
-      override def toDebugString: String = s"_ == $reference"
-    }
+  object collection {
+    def contains[A: Show](reference: A): Constraint =
+      Constraint(Identifier.Contains, Reference.fromShow(reference).some, delta = none, equal = none)
   }
 
-  sealed abstract class Number extends Constraint
+  object duration {
+    def equal(reference: FiniteDuration): Constraint =
+      Constraint(Identifier.Equal, Reference.fromShow(reference).some, delta = none, equal = none)
 
-  object Number {
-    final case class Equal(reference: Double, delta: Double) extends Number {
-      override def toDebugString: String = s"_ == $reference"
-    }
+    def greaterThan(reference: FiniteDuration, equal: Boolean): Constraint =
+      Constraint(Identifier.GreaterThan, Reference.fromShow(reference).some, delta = none, equal.some)
 
-    final case class GreaterThan(equal: Boolean, reference: Double, delta: Double) extends Number {
-      override def toDebugString: String = if (equal) s"_ >= $reference" else s"_ > $reference"
-    }
-
-    final case class LessThan(equal: Boolean, reference: Double, delta: Double) extends Number {
-      override def toDebugString: String = if (equal) s"_ <= $reference" else s"_ < $reference"
-    }
+    def lessThan(reference: FiniteDuration, equal: Boolean): Constraint =
+      Constraint(Identifier.LessThan, Reference.fromShow(reference).some, delta = none, equal.some)
   }
 
-  final case class OneOf(references: Set[String]) extends Constraint {
-    override def toDebugString: String = s"_.oneOf(${references.map(_.mkString(","))})"
+  object number {
+    def equal[A: Numeric](reference: A, delta: A): Constraint =
+      Constraint(Identifier.Equal, Reference.fromNumeric(reference).some, Delta.fromNumeric(delta).some, equal = none)
+
+    def greaterThan[A: Numeric](reference: A, delta: A, equal: Boolean): Constraint =
+      Constraint(
+        Identifier.GreaterThan,
+        Reference.fromNumeric(reference).some,
+        Delta.fromNumeric(delta).some,
+        equal.some
+      )
+
+    def lessThan[A: Numeric](reference: A, delta: A, equal: Boolean): Constraint =
+      Constraint(Identifier.LessThan, Reference.fromNumeric(reference).some, Delta.fromNumeric(delta).some, equal.some)
   }
 
-  sealed abstract class Optional extends Constraint
+  def oneOf[A: Show](references: Set[A]): Constraint =
+    Constraint(Identifier.OneOf, Reference.fromIterable(references).some, delta = none, equal = none)
 
-  object Optional {
-    final case object IsDefined extends Constraint {
-      override def toDebugString: String = "_.isDefined"
-    }
+  object optional {
+    val isDefined: Constraint = Constraint(Identifier.Required, reference = none, delta = none, equal = none)
   }
 
-  final case class Parsing(reference: String) extends Constraint {
-    override def toDebugString: String = s"_.parse($reference)"
+  def parsing(name: String): Constraint = Constraint(Identifier(name), reference = none, delta = none, equal = none)
+
+  object text {
+    def equal(reference: String): Constraint =
+      Constraint(Identifier.Equal, Reference(reference).some, delta = none, equal = none)
+
+    def matches(regex: Regex): Constraint =
+      Constraint(Identifier.Matches, Reference(regex.regex).some, delta = none, equal = none)
   }
 
-  sealed abstract class Text extends Constraint
+  object time {
+    def after(reference: ZonedDateTime, equal: Boolean): Constraint =
+      Constraint(Identifier.After, Reference(reference.toString).some, delta = none, equal.some)
 
-  object Text {
-    final case class AtLeast(equal: Boolean, reference: Int) extends Text {
-      override def toDebugString: String = if (equal) s"_.length >= $reference" else s"_.length > $reference"
-    }
-
-    final case class AtMost(equal: Boolean, reference: Int) extends Text {
-      override def toDebugString: String = if (equal) s"_.length <= $reference" else s"_.length < $reference"
-    }
-
-    final case class Equal(reference: String) extends Text {
-      override def toDebugString: String = s"_ == $reference"
-    }
-
-    final case class Exactly(reference: Int) extends Text {
-      override def toDebugString: String = s"_.length == $reference"
-    }
-
-    final case class Matches(regex: Regex) extends Text {
-      override def toDebugString: String = s"_.matches(${regex.regex})"
-    }
-  }
-
-  sealed abstract class Time extends Constraint
-
-  object Time {
-    final case class After(equal: Boolean, reference: ZonedDateTime) extends Time {
-      override def toDebugString: String = s"_.isAfter($reference)"
-    }
-
-    final case class Before(equal: Boolean, reference: ZonedDateTime) extends Time {
-      override def toDebugString: String = s"_.isBefore($reference)"
-    }
+    def before(reference: ZonedDateTime, equal: Boolean): Constraint =
+      Constraint(Identifier.Before, Reference(reference.toString).some, delta = none, equal.some)
   }
 }

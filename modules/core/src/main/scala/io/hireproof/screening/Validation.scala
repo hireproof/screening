@@ -22,23 +22,23 @@ abstract class Validation[-I, +O] {
 
   final def collect[T](f: PartialFunction[O, T]): Validation[I, T] = map(f.lift).required
 
-  def toDebugString: String = constraints.map(_.toDebugString).mkString(" && ")
+  def toDebugString: String = constraints.map(_.identifier.value).mkString("[", ", ", "]")
 }
 
 object Validation {
   implicit final class Ops[I, O](val validation: Validation[I, O]) extends AnyVal {
     def required[T](implicit ev: O =:= Option[T]): Validation[I, T] =
-      validation.map(ev.apply).andThen(optional.isDefined)
+      validation.map(ev.apply).andThen(optional.isDefined[T])
 
     def tap: Validation[I, I] = Validation(validation.constraints)(input => validation.run(input).as(input))
 
     def and[T](right: Validation[I, T]): Validation[I, (O, T)] =
       Validation(validation.constraints ++ right.constraints)(input => (validation.run(input), right.run(input)).tupled)
 
-    def or[OO >: O](right: Validation[I, OO]): Validation[I, OO] =
-      Validation(Set(Constraint.Or(validation.constraints, right.constraints))) { input =>
-        validation.run(input).orElse(right.run(input))
-      }
+//    def or[OO >: O](right: Validation[I, OO]): Validation[I, OO] =
+//      Validation(Set(Constraint.Or(validation.constraints, right.constraints))) { input =>
+//        validation.run(input).orElse(right.run(input))
+//      }
   }
 
   private def apply[I, O](constraints: Set[Constraint])(f: I => ValidatedNel[Error, O]): Validation[I, O] = {
@@ -61,15 +61,13 @@ object Validation {
   def ask[A]: Validation[A, A] = Validation(Set.empty)(Validated.validNel)
 
   def cond[I](constraints: NonEmptyList[Constraint])(f: I => Boolean): Validation[I, Unit] =
-    Validation(constraints.toList.toSet)(input =>
-      Validated.cond(f(input), (), constraints.map(Error.fromAny(_, input)))
-    )
+    Validation(constraints.toList.toSet)(input => Validated.cond(f(input), (), constraints.map(Error(_, input))))
 
   def condNel[I](constraint: Constraint)(f: I => Boolean): Validation[I, Unit] =
     cond(NonEmptyList.one(constraint))(f)
 
   def fromOption[I, O](constraints: NonEmptyList[Constraint])(f: I => Option[O]): Validation[I, O] =
-    Validation(constraints.toList.toSet)(input => f(input).toValid(constraints.map(Error.fromAny(_, input))))
+    Validation(constraints.toList.toSet)(input => f(input).toValid(constraints.map(Error(_, input))))
 
   def fromOptionNel[I, O](constraint: Constraint)(f: I => Option[O]): Validation[I, O] =
     fromOption(NonEmptyList.one(constraint))(f)
@@ -82,7 +80,7 @@ object Validation {
         try f(input).valid
         catch {
           case throwable if tag.runtimeClass.isInstance(throwable) =>
-            constraints.map(Error.fromAny(_, input)).invalid
+            constraints.map(Error(_, input)).invalid
         }
       }
 
