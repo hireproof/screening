@@ -317,7 +317,8 @@ final class ValidationTest extends FunSuite {
 
     assertEquals(
       obtained = validation.toDebugString,
-      expected = "[greaterThan, lessThan]"
+      expected =
+        "[greaterThan(reference=1, delta=0, equal=true), greaterThan(reference=3, delta=0, equal=false), lessThan(reference=10, delta=0, equal=true)]"
     )
   }
 }

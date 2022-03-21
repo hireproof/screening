@@ -10,7 +10,10 @@ final case class Reference(value: String) extends AnyVal
 object Reference {
   def fromShow[A: Show](value: A): Reference = Reference(value.show)
 
-  def fromNumeric[A: Numeric](value: A): Reference = fromShow(value.toDouble)
+  def fromNumeric[A: Numeric](value: A): Reference = {
+    val double = value.toDouble
+    Reference(String.format(if (double % 1.0d != 0) "%s" else "%.0f", double))
+  }
 
   def fromIterable[A: Show](values: Iterable[A]): Reference = Reference(values.map(_.show).mkString("[", ", ", "]"))
 }

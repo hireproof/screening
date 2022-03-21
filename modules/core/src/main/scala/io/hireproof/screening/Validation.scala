@@ -22,7 +22,7 @@ abstract class Validation[-I, +O] {
 
   final def collect[T](f: PartialFunction[O, T]): Validation[I, T] = map(f.lift).required
 
-  def toDebugString: String = constraints.map(_.identifier.value).mkString("[", ", ", "]")
+  def toDebugString: String = constraints.map(_.toDebugString).mkString("[", ", ", "]")
 }
 
 object Validation {
@@ -35,10 +35,10 @@ object Validation {
     def and[T](right: Validation[I, T]): Validation[I, (O, T)] =
       Validation(validation.constraints ++ right.constraints)(input => (validation.run(input), right.run(input)).tupled)
 
-//    def or[OO >: O](right: Validation[I, OO]): Validation[I, OO] =
-//      Validation(Set(Constraint.Or(validation.constraints, right.constraints))) { input =>
-//        validation.run(input).orElse(right.run(input))
-//      }
+    def or[OO >: O](right: Validation[I, OO]): Validation[I, OO] =
+      Validation(Set(Constraint.Or(validation.constraints, right.constraints))) { input =>
+        validation.run(input).orElse(right.run(input))
+      }
   }
 
   private def apply[I, O](constraints: Set[Constraint])(f: I => ValidatedNel[Error, O]): Validation[I, O] = {
