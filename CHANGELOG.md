@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.0.14
+
+_2022-03-22_
+
+* Rename `BrokenConstraint` to `Validation`
+* Remove generic parameter from `Violations` and rename `Error` to `Violation`
+* Add `Semigroup` instance for `Violations`
+* `email` validation
+
 ## 0.0.13
 
 _2022-03-22_
