@@ -46,12 +46,13 @@ lazy val root = module(identifier = None)
         Nil
     }
   )
-  .aggregate(core, jsonCirce)
+  .aggregate(core)
 
 lazy val core = module(identifier = Some("core"))
   .settings(
     libraryDependencies ++=
-      "org.typelevel" %%% "cats-core" % Version.Cats ::
+      "io.circe" %%% "circe-core" % Version.Circe ::
+        "org.typelevel" %%% "cats-core" % Version.Cats ::
         "org.scalameta" %%% "munit" % Version.Munit % "test" ::
         Nil
   )
@@ -60,14 +61,3 @@ lazy val core = module(identifier = Some("core"))
       "io.github.cquiroz" %%% "scala-java-time" % Version.ScalaJavaTime % "test" ::
         Nil
   )
-
-lazy val jsonCirce = module(identifier = Some("json-circe"))
-  .settings(
-    libraryDependencies ++=
-      "io.circe" %%% "circe-core" % Version.Circe ::
-        Nil,
-    scalacOptions ++= {
-      if (scalaVersion.value == Version.Scala213) "-Ypatmat-exhaust-depth" :: "off" :: Nil else Nil
-    }
-  )
-  .dependsOn(core % "compile->compile;test->test")
