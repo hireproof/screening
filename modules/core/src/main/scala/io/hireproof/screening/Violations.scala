@@ -1,6 +1,6 @@
 package io.hireproof.screening
 
-import cats.SemigroupK
+import cats.{Semigroup, SemigroupK}
 import cats.data.{NonEmptyList, NonEmptyMap}
 import cats.syntax.all._
 
@@ -40,4 +40,6 @@ object Violations {
   implicit val semigroupK: SemigroupK[Violations] = new SemigroupK[Violations] {
     override def combineK[A](x: Violations[A], y: Violations[A]): Violations[A] = Violations(x.toNem |+| y.toNem)
   }
+
+  implicit def semigroup[A]: Semigroup[Violations[A]] = semigroupK.algebra[A]
 }
