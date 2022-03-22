@@ -7,13 +7,13 @@ import io.circe.{Error => _, _}
 import io.hireproof.screening.{Actual, Constraint, Reference, Selection, Violation, Violations}
 
 trait CirceInstances {
-  implicit val decoderConstraintValue: Decoder[Constraint.Value] = Decoder.instance { cursor =>
+  implicit val decoderConstraintValue: Decoder[Constraint.Rule] = Decoder.instance { cursor =>
     for {
       identifier <- cursor.get[String]("identifier").map(Constraint.Identifier.apply)
       reference <- cursor.get[Option[String]]("identifier").map(_.map(Reference.apply))
       delta <- cursor.get[Option[String]]("delta").map(_.map(Constraint.Delta.apply))
       equal <- cursor.get[Option[Boolean]]("equal")
-    } yield Constraint.Value(identifier, reference, delta, equal)
+    } yield Constraint.Rule(identifier, reference, delta, equal)
   }
 
   implicit val decoderConstraint: Decoder[Constraint] = decoderConstraintValue.or {
@@ -28,7 +28,7 @@ trait CirceInstances {
   implicit val encoderConstraint: Encoder.AsObject[Constraint] = Encoder.AsObject.instance {
     case Constraint.Or(left, right) =>
       JsonObject("left" := left, "right" := right)
-    case Constraint.Value(identifier, reference, delta, equal) =>
+    case Constraint.Rule(identifier, reference, delta, equal) =>
       JsonObject(
         "identifier" := identifier.value,
         "reference" := reference.map(_.value),

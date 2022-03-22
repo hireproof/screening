@@ -18,15 +18,15 @@ object Constraint {
       left.map(_.toDebugString).mkString("[", ", ", "]") + " || " + right.map(_.toDebugString).mkString("[", ", ", "]")
   }
 
-  final case class Value(
+  final case class Rule(
       identifier: Constraint.Identifier,
-      reference: Option[Reference],
-      delta: Option[Constraint.Delta],
+      reference: Option[Value],
+      delta: Option[Number],
       equal: Option[Boolean]
   ) extends Constraint {
     override def toDebugString: String = {
-      val parameters = reference.map(reference => s"reference=${reference.value}").toList ++
-        delta.map(delta => s"delta=${delta.value}").toList ++
+      val parameters = reference.map(reference => s"reference=$reference").toList ++
+        delta.map(delta => s"delta=$delta").toList ++
         equal.map(equal => s"equal=$equal").toList
       s"${identifier.value}(${parameters.mkString(", ")})"
     }
@@ -47,55 +47,89 @@ object Constraint {
     val Required: Constraint.Identifier = Identifier("required")
   }
 
-  final case class Delta(value: String) extends AnyVal
-
-  object Delta {
-    def fromShow[A: Show](value: A): Delta = Delta(value.show)
-
-    def fromNumeric[A: Numeric](value: A): Delta = {
-      val double = value.toDouble
-      Delta(String.format(if (double % 1.0d != 0) "%s" else "%.0f", double))
-    }
-  }
-
-  def apply(identifier: Identifier, reference: Reference, delta: Delta, equal: Boolean): Constraint =
-    Value(identifier, reference.some, delta.some, equal.some)
-  def apply(identifier: Identifier, reference: Reference, delta: Delta): Constraint =
-    Value(identifier, reference.some, delta.some, equal = none)
-  def apply(identifier: Identifier, reference: Reference, equal: Boolean): Constraint =
-    Value(identifier, reference.some, delta = none, equal.some)
-  def apply(identifier: Identifier, reference: Reference): Constraint =
-    Value(identifier, reference.some, delta = none, equal = none)
-  def apply(identifier: Identifier): Constraint = Value(identifier, reference = none, delta = none, equal = none)
+  def apply(identifier: Identifier, reference: Value, delta: Number, equal: Boolean): Constraint =
+    Rule(identifier, reference.some, delta.some, equal.some)
+  def apply(identifier: Identifier, reference: Value, delta: Number): Constraint =
+    Rule(identifier, reference.some, delta.some, equal = none)
+  def apply(identifier: Identifier, reference: Value, equal: Boolean): Constraint =
+    Rule(identifier, reference.some, delta = none, equal.some)
+  def apply(identifier: Identifier, reference: Value): Constraint =
+    Rule(identifier, reference.some, delta = none, equal = none)
+  def apply(identifier: Identifier): Constraint = Rule(identifier, reference = none, delta = none, equal = none)
 
   object collection {
-    def contains[A: Show](reference: A): Constraint = Constraint(Identifier.Contains, Reference.fromShow(reference))
+    def contains[A: Show](reference: A): Constraint = Constraint(Identifier.Contains, Value.fromShow(reference))
   }
 
   object duration {
     def equal(reference: FiniteDuration): Constraint =
-      Constraint(Identifier.Equal, Reference.fromShow(reference))
+      Constraint(Identifier.Equal, Value.fromShow(reference))
 
     def greaterThan(reference: FiniteDuration, equal: Boolean): Constraint =
-      Constraint(Identifier.GreaterThan, Reference.fromShow(reference), equal)
+      Constraint(Identifier.GreaterThan, Value.fromShow(reference), equal)
 
     def lessThan(reference: FiniteDuration, equal: Boolean): Constraint =
-      Constraint(Identifier.LessThan, Reference.fromShow(reference), equal)
+      Constraint(Identifier.LessThan, Value.fromShow(reference), equal)
   }
 
   object number {
-    def equal[A: Numeric](reference: A, delta: A): Constraint =
-      Constraint(Identifier.Equal, Reference.fromNumeric(reference), Delta.fromNumeric(delta))
+    def equal(reference: BigDecimal, delta: BigDecimal = 0): Constraint =
+      Constraint(Identifier.Equal, Number.fromBigDecimal(reference), Number.fromBigDecimal(delta))
 
-    def greaterThan[A: Numeric](reference: A, delta: A, equal: Boolean): Constraint =
-      Constraint(Identifier.GreaterThan, Reference.fromNumeric(reference), Delta.fromNumeric(delta), equal)
+    def greaterThan(reference: BigDecimal, delta: BigDecimal = 0, equal: Boolean = true): Constraint =
+      Constraint(Identifier.GreaterThan, Number.fromBigDecimal(reference), Number.fromBigDecimal(delta), equal)
 
-    def lessThan[A: Numeric](reference: A, delta: A, equal: Boolean): Constraint =
-      Constraint(Identifier.LessThan, Reference.fromNumeric(reference), Delta.fromNumeric(delta), equal)
+    def lessThan(reference: BigDecimal, delta: BigDecimal = 0, equal: Boolean = true): Constraint =
+      Constraint(Identifier.LessThan, Number.fromBigDecimal(reference), Number.fromBigDecimal(delta), equal)
+
+    def equal(reference: BigInt, delta: BigInt = 0): Constraint =
+      Constraint(Identifier.Equal, Number.fromBigInt(reference), Number.fromBigInt(delta))
+
+    def greaterThan(reference: BigInt, delta: BigInt = 0, equal: Boolean = true): Constraint =
+      Constraint(Identifier.GreaterThan, Number.fromBigInt(reference), Number.fromBigInt(delta), equal)
+
+    def lessThan(reference: BigInt, delta: BigInt = 0, equal: Boolean = true): Constraint =
+      Constraint(Identifier.LessThan, Number.fromBigInt(reference), Number.fromBigInt(delta), equal)
+
+    def equal(reference: Double, delta: Double = 0): Constraint =
+      Constraint(Identifier.Equal, Number.fromDouble(reference), Number.fromDouble(delta))
+
+    def greaterThan(reference: Double, delta: Double = 0, equal: Boolean = true): Constraint =
+      Constraint(Identifier.GreaterThan, Number.fromDouble(reference), Number.fromDouble(delta), equal)
+
+    def lessThan(reference: Double, delta: Double= 0, equal: Boolean = true): Constraint =
+      Constraint(Identifier.LessThan, Number.fromDouble(reference), Number.fromDouble(delta), equal)
+
+    def equal(reference: Float, delta: Float = 0): Constraint =
+      Constraint(Identifier.Equal, Number.fromFloat(reference), Number.fromFloat(delta))
+
+    def greaterThan(reference: Float, delta: Float = 0, equal: Boolean = true): Constraint =
+      Constraint(Identifier.GreaterThan, Number.fromFloat(reference), Number.fromFloat(delta), equal)
+
+    def lessThan(reference: Float, delta: Float= 0, equal: Boolean = true): Constraint =
+      Constraint(Identifier.LessThan, Number.fromFloat(reference), Number.fromFloat(delta), equal)
+
+    def equal(reference: Int, delta: Int = 0): Constraint =
+      Constraint(Identifier.Equal, Number.fromInt(reference), Number.fromInt(delta))
+
+    def greaterThan(reference: Int, delta: Int = 0, equal: Boolean = true): Constraint =
+      Constraint(Identifier.GreaterThan, Number.fromInt(reference), Number.fromInt(delta), equal)
+
+    def lessThan(reference: Int, delta: Int= 0, equal: Boolean = true): Constraint =
+      Constraint(Identifier.LessThan, Number.fromInt(reference), Number.fromInt(delta), equal)
+
+    def equal(reference: Long, delta: Long = 0): Constraint =
+      Constraint(Identifier.Equal, Number.fromLong(reference), Number.fromLong(delta))
+
+    def greaterThan(reference: Long, delta: Long = 0, equal: Boolean = true): Constraint =
+      Constraint(Identifier.GreaterThan, Number.fromLong(reference), Number.fromLong(delta), equal)
+
+    def lessThan(reference: Long, delta: Long= 0, equal: Boolean = true): Constraint =
+      Constraint(Identifier.LessThan, Number.fromLong(reference), Number.fromLong(delta), equal)
   }
 
   def oneOf[A: Show](references: Set[A]): Constraint =
-    Constraint(Identifier.OneOf, Reference.fromIterable(references))
+    Constraint(Identifier.OneOf, Value.fromList(references.map(Value.fromShow[A]).toList))
 
   object optional {
     val isDefined: Constraint = Constraint(Identifier.Required)
@@ -106,16 +140,16 @@ object Constraint {
   object text {
     val email: Constraint = Constraint(Identifier.Email)
 
-    def equal(reference: String): Constraint = Constraint(Identifier.Equal, Reference(reference))
+    def equal(reference: String): Constraint = Constraint(Identifier.Equal, Value.fromString(reference))
 
-    def matches(regex: Regex): Constraint = Constraint(Identifier.Matches, Reference(regex.regex))
+    def matches(regex: Regex): Constraint = Constraint(Identifier.Matches, Value.fromString(regex.regex))
   }
 
   object time {
     def after(reference: ZonedDateTime, equal: Boolean): Constraint =
-      Constraint(Identifier.After, Reference(reference.toString), equal)
+      Constraint(Identifier.After, Value.fromString(reference.toString), equal)
 
     def before(reference: ZonedDateTime, equal: Boolean): Constraint =
-      Constraint(Identifier.Before, Reference(reference.toString), equal)
+      Constraint(Identifier.Before, Value.fromString(reference.toString), equal)
   }
 }
