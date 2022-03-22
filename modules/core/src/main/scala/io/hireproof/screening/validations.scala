@@ -163,6 +163,8 @@ object validations {
     def atMost(reference: Int, equal: Boolean = true): Validation[String, Unit] =
       length.andThen(number.lessThan(reference, equal, delta = 0))
 
+    val email: Validation[String, Unit] = matches("""^.+@.+$""".r).withConstraint(Constraint.text.email)
+
     val empty: Validation[String, Unit] = atMost(reference = 0)
 
     def equal(reference: String): Validation[String, Unit] =

@@ -22,6 +22,10 @@ abstract class Validation[-I, +O] {
 
   final def collect[T](f: PartialFunction[O, T]): Validation[I, T] = map(f.lift).required
 
+  final def modifyConstraint(f: Constraint => Constraint): Validation[I, O] = Validation(constraints.map(f))(run)
+
+  final def withConstraint(constraint: Constraint): Validation[I, O] = Validation(Set(constraint))(run)
+
   def toDebugString: String = constraints.map(_.toDebugString).mkString("[", ", ", "]")
 }
 

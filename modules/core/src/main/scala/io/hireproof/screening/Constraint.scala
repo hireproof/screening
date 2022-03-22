@@ -38,6 +38,7 @@ object Constraint {
     val After: Constraint.Identifier = Identifier("after")
     val Before: Constraint.Identifier = Identifier("before")
     val Contains: Constraint.Identifier = Identifier("contains")
+    val Email: Constraint.Identifier = Identifier("email")
     val GreaterThan: Constraint.Identifier = Identifier("greaterThan")
     val LessThan: Constraint.Identifier = Identifier("lessThan")
     val Equal: Constraint.Identifier = Identifier("equal")
@@ -103,6 +104,8 @@ object Constraint {
   def parsing(name: String): Constraint = Constraint(Identifier(name))
 
   object text {
+    val email: Constraint = Constraint(Identifier.Email)
+
     def equal(reference: String): Constraint = Constraint(Identifier.Equal, Reference(reference))
 
     def matches(regex: Regex): Constraint = Constraint(Identifier.Matches, Reference(regex.regex))
