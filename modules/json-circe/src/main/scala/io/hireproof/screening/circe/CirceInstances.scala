@@ -39,8 +39,8 @@ trait CirceInstances {
 
   implicit val decoderViolation: Decoder[Violation] = Decoder.instance { cursor =>
     cursor.get[String]("type").flatMap {
-      case "constraint" =>
-        (cursor.as[Constraint], cursor.get[String]("actual").map(Actual.apply)).mapN(Violation.BrokenConstraint.apply)
+      case "validation" =>
+        (cursor.as[Constraint], cursor.get[String]("actual").map(Actual.apply)).mapN(Violation.Validation.apply)
       case "conflict" => cursor.get[String]("actual").map(Actual.apply).map(Violation.Conflict.apply)
       case "invalid" =>
         (
@@ -53,8 +53,8 @@ trait CirceInstances {
   }
 
   implicit val encoderViolation: Encoder.AsObject[Violation] = Encoder.AsObject.instance {
-    case Violation.BrokenConstraint(constraint, actual) =>
-      JsonObject("type" := "constraint", "actual" := actual.value) deepMerge constraint.asJsonObject
+    case Violation.Validation(constraint, actual) =>
+      JsonObject("type" := "validation", "actual" := actual.value) deepMerge constraint.asJsonObject
     case Violation.Conflict(actual) => JsonObject("type" := "conflict", "actual" := actual.value)
     case Violation.Invalid(reference, actual) =>
       JsonObject("type" := "invalid", "reference" := reference.map(_.value), "actual" := actual.value)
