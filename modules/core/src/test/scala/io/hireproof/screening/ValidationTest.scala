@@ -2,123 +2,155 @@ package io.hireproof.screening
 
 import munit.FunSuite
 import io.hireproof.screening.validations._
+import cats.syntax.all._
 
 import java.time._
 
 final class ValidationTest extends FunSuite {
   test("collection.atLeast") {
-    assert(collection.atLeast[List, Int](reference = 1).run(List(1, 2, 3)).isValid)
-    assert(collection.atLeast[List, Int](reference = 3).run(List(1, 2, 3)).isValid)
+    assert(list.atLeast(reference = 1).run(List(1, 2, 3)).isValid)
+    assert(list.atLeast(reference = 3).run(List(1, 2, 3)).isValid)
     assertEquals(
-      obtained = collection.atLeast[List, Int](reference = 3).run(List(1)).error,
-      expected = Some(Validation.Error.Collection.AtLeast(equal = true, reference = 3, actual = 1))
+      obtained = list.atLeast(reference = 3).run(List(1)).error,
+      expected = Error(Constraint.number.greaterThan(reference = 3, equal = true, delta = 0), actual = 1).some
     )
   }
 
   test("collection.atMost") {
-    assert(collection.atMost[List, Int](reference = 3).run(List(1)).isValid)
-    assert(collection.atMost[List, Int](reference = 3).run(List(1, 2, 3)).isValid)
+    assert(list.atMost(reference = 3).run(List(1)).isValid)
+    assert(list.atMost(reference = 3).run(List(1, 2, 3)).isValid)
     assertEquals(
-      obtained = collection.atMost[List, Int](reference = 1).run(List(1, 2, 3)).error,
-      expected = Some(Validation.Error.Collection.AtMost(equal = true, reference = 1, actual = 3))
+      obtained = list.atMost(reference = 1).run(List(1, 2, 3)).error,
+      expected = Error(Constraint.number.lessThan(reference = 1, equal = true, delta = 0), actual = 3).some
     )
   }
 
-  test("collection.isEmpty") {
-    assert(collection.empty[List, Int].run(Nil).isValid)
+  test("collection.empty") {
+    assert(list.empty.run(Nil).isValid)
     assertEquals(
-      obtained = collection.empty[List, Int].run(List(1, 2, 3)).error,
-      expected = Some(Validation.Error.Collection.AtMost(equal = true, reference = 0, actual = 3))
+      obtained = list.empty.run(List(1, 2, 3)).error,
+      expected = Error(Constraint.number.lessThan(reference = 0, equal = true, delta = 0), actual = 3).some
     )
   }
 
   test("collection.nonEmpty") {
-    assert(collection.nonEmpty[List, Int].run(List(1, 2, 3)).isValid)
+    assert(list.nonEmpty.run(List(1, 2, 3)).isValid)
     assertEquals(
-      obtained = collection.nonEmpty[List, Int].run(Nil).error,
-      expected = Some(Validation.Error.Collection.AtLeast(equal = false, reference = 0, actual = 0))
+      obtained = list.nonEmpty.run(Nil).error,
+      expected = Error(Constraint.number.greaterThan(reference = 1, equal = true, delta = 0), actual = 0).some
     )
   }
 
   test("collection.exactly") {
-    assert(collection.exactly[List, Int](expected = 3).run(List(1, 2, 3)).isValid)
-    assert(collection.exactly[List, Int](expected = 0).run(Nil).isValid)
+    assert(list.exactly(reference = 3).run(List(1, 2, 3)).isValid)
+    assert(list.exactly(reference = 0).run(Nil).isValid)
     assertEquals(
-      obtained = collection.exactly[List, Int](expected = 3).run(List(1)).error,
-      expected = Some(Validation.Error.Collection.Exactly(reference = 3, actual = 1))
+      obtained = list.exactly(reference = 3).run(List(1)).error,
+      expected = Error(Constraint.number.equal(reference = 3, delta = 0), actual = 1).some
     )
   }
 
   test("collection.contains") {
-    assert(collection.contains[List, String](reference = "foobar").run(List("foo", "foobar", "bar")).isValid)
+    assert(list.contains(reference = "foobar").run(List("foo", "foobar", "bar")).isValid)
     assertEquals(
-      obtained = collection.contains[List, String](reference = "foobar").run(List("foo", "bar")).error,
-      expected = Some(Validation.Error.Collection.Contains(reference = "foobar", actual = List("foo", "bar")))
+      obtained = list.contains(reference = "foobar").run(List("foo", "bar")).error,
+      expected = Error(Constraint.collection.contains(reference = "foobar"), actual = List("foo", "bar")).some
     )
   }
 
-  test("date.after: Instant") {
+  test("time.after: Instant") {
     val sample = LocalDateTime.of(2021, 11, 29, 12, 30).toInstant(ZoneOffset.UTC)
 
-    assert(date.after(sample, equal = true).run(sample.plusSeconds(100)).isValid)
+    assert(time.after(sample, equal = true).run(sample).isValid)
+    assert(time.after(sample, equal = true).run(sample.plusSeconds(100)).isValid)
     assertEquals(
-      obtained = date.after(sample).run(sample.minusSeconds(100)).error,
-      expected = Some(Validation.Error.Date.After(equal = true, sample, sample.minusSeconds(100)))
+      obtained = time.after(sample).run(sample.minusSeconds(100)).error,
+      expected = Error(
+        Constraint.time.after(sample.atZone(ZoneOffset.UTC), equal = true),
+        actual = sample.minusSeconds(100)
+      ).some
     )
   }
 
-  test("date.before: Instant") {
+  test("time.before: Instant") {
     val sample = LocalDateTime.of(2021, 11, 29, 12, 30).toInstant(ZoneOffset.UTC)
 
-    assert(date.before(sample, equal = true).run(sample.minusSeconds(100)).isValid)
+    assert(time.before(sample, equal = true).run(sample).isValid)
+    assert(time.before(sample, equal = true).run(sample.minusSeconds(100)).isValid)
     assertEquals(
-      obtained = date.before(sample).run(sample.plusSeconds(100)).error,
-      expected = Some(Validation.Error.Date.Before(equal = true, sample, sample.plusSeconds(100)))
+      obtained = time.before(sample).run(sample.plusSeconds(100)).error,
+      expected = Error(
+        Constraint.time.before(sample.atZone(ZoneOffset.UTC), equal = true),
+        actual = sample.plusSeconds(100)
+      ).some
     )
   }
 
-  test("number.greaterThan (equal: false)") {
-    assert(number.greaterThan(1, equal = false).run(3).isValid)
+  test("number.greaterThan (delta)") {
+    assert(number.greaterThan(reference = 1d, delta = 0.5d, equal = true).run(0.75d).isValid)
+    assert(number.greaterThan(reference = 1d, delta = 0.5d, equal = true).run(0.5d).isValid)
     assertEquals(
-      obtained = number.greaterThan(3, equal = false).run(3).error,
-      expected = Some(Validation.Error.Number.GreaterThan(equal = false, 3, 3))
+      obtained = number.greaterThan(reference = 1d, delta = 0.5d, equal = false).run(0.5d).error,
+      expected = Error(Constraint.number.greaterThan(reference = 1d, delta = 0.5d, equal = false), actual = 0.5d).some
     )
     assertEquals(
-      obtained = number.greaterThan(3, equal = false).run(1).error,
-      expected = Some(Validation.Error.Number.GreaterThan(equal = false, 3, 1))
-    )
-  }
-
-  test("number.greaterThan (equal: true)") {
-    assert(number.greaterThan(1, equal = true).run(3).isValid)
-    assert(number.greaterThan(3, equal = true).run(3).isValid)
-
-    assertEquals(
-      obtained = number.greaterThan(3, equal = true).run(1).error,
-      expected = Some(Validation.Error.Number.GreaterThan(equal = true, 3, 1))
+      obtained = number.greaterThan(reference = 1d, delta = 0.5d, equal = true).run(0.25d).error,
+      expected = Error(Constraint.number.greaterThan(reference = 1d, delta = 0.5d, equal = true), actual = 0.25d).some
     )
   }
 
-  test("number.lessThan (equal: false)") {
-    assert(number.lessThan(3, equal = false).run(1).isValid)
+  test("number.greaterThanNotEqual") {
+    assert(number.greaterThanNotEqual(reference = 1).run(3).isValid)
     assertEquals(
-      obtained = number.lessThan(3, equal = false).run(3).error,
-      expected = Some(Validation.Error.Number.LessThan(equal = false, 3, 3))
+      obtained = number.greaterThanNotEqual(reference = 3).run(3).error,
+      expected = Error(Constraint.number.greaterThan(reference = 3, delta = 0, equal = false), actual = 3).some
     )
-
     assertEquals(
-      obtained = number.lessThan(1, equal = false).run(3).error,
-      expected = Some(Validation.Error.Number.LessThan(equal = false, 1, 3))
+      obtained = number.greaterThanNotEqual(3).run(1).error,
+      expected = Error(Constraint.number.greaterThan(reference = 3, delta = 0, equal = false), actual = 1).some
     )
   }
 
-  test("number.lessThan (equal: true)") {
-    assert(number.lessThan(3, equal = true).run(1).isValid)
-    assert(number.lessThan(3, equal = true).run(3).isValid)
-
+  test("number.greaterThanEqual") {
+    assert(number.greaterThanEqual(reference = 1).run(3).isValid)
+    assert(number.greaterThanEqual(reference = 3).run(3).isValid)
     assertEquals(
-      obtained = number.lessThan(1, equal = true).run(3).error,
-      expected = Some(Validation.Error.Number.LessThan(equal = true, 1, 3))
+      obtained = number.greaterThanEqual(3).run(1).error,
+      expected = Error(Constraint.number.greaterThan(reference = 3, delta = 0, equal = true), actual = 1).some
+    )
+  }
+
+  test("number.lessThanNotEqual") {
+    assert(number.lessThanNotEqual(reference = 3).run(1).isValid)
+    assertEquals(
+      obtained = number.lessThanNotEqual(reference = 3).run(3).error,
+      expected = Error(Constraint.number.lessThan(reference = 3, delta = 0, equal = false), actual = 3).some
+    )
+    assertEquals(
+      obtained = number.lessThanNotEqual(1).run(3).error,
+      expected = Error(Constraint.number.lessThan(reference = 1, delta = 0, equal = false), actual = 3).some
+    )
+  }
+
+  test("number.lessThan (delta)") {
+    assert(number.lessThan(reference = 1d, delta = 0.5d, equal = true).run(1.25d).isValid)
+    assert(number.lessThan(reference = 1d, delta = 0.5d, equal = true).run(1.5d).isValid)
+    assertEquals(
+      obtained = number.lessThan(reference = 1d, delta = 0.5d, equal = false).run(1.5d).error,
+      expected = Error(Constraint.number.lessThan(reference = 1d, delta = 0.5d, equal = false), actual = 1.5d).some
+    )
+    assertEquals(
+      obtained = number.lessThan(reference = 1d, delta = 0.5d, equal = true).run(1.75d).error,
+      expected = Error(Constraint.number.lessThan(reference = 1d, delta = 0.5d, equal = true), actual = 1.75d).some
+    )
+  }
+
+  test("number.lessThanEqual") {
+    assert(number.lessThanEqual(reference = 3).run(1).isValid)
+    assert(number.lessThanEqual(reference = 3).run(3).isValid)
+    assertEquals(
+      obtained = number.lessThanEqual(1).run(3).error,
+      expected = Error(Constraint.number.lessThan(reference = 1, delta = 0, equal = true), actual = 3).some
     )
   }
 
@@ -129,14 +161,18 @@ final class ValidationTest extends FunSuite {
 
     assertEquals(
       obtained = number.equal(1).run(3).error,
-      expected = Some(Validation.Error.Number.Equal(1, 3))
+      expected = Error(Constraint.number.equal(reference = 1, delta = 0), actual = 3).some
     )
     assertEquals(
-      obtained = number.equal(0.3d).run(0.1d + 0.2d).error,
-      expected = Some(Validation.Error.Number.Equal(reference = 0.3d, actual = 0.1d + 0.2d))
+      obtained = number.equal(0.3d, 0d).run(0.1d + 0.2d).error,
+      expected = Error(Constraint.number.equal(reference = 0.3d, delta = 0d), actual = 0.1d + 0.2d).some
     )
+  }
 
-    assert(number.equal(expected = 0.3d, delta = 0.01d).run(0.1d + 0.2d).isValid)
+  test("number.equal (delta)") {
+    assert(number.equal(reference = 0.3d, delta = 0.01d).run(0.1d + 0.2d).isValid)
+    assert(number.equal(reference = 0.3d, delta = 0.01d).run(0.1d + 0.25d).isInvalid)
+    assert(number.equal(reference = 0.3d, delta = 0.01d).run(0.1d + 0.15d).isInvalid)
   }
 
   test("parsing.bigDecimal") {
@@ -144,7 +180,7 @@ final class ValidationTest extends FunSuite {
     assert(parsing.bigDecimal.run("3").isValid)
     assertEquals(
       obtained = parsing.bigDecimal.run("foobar").error,
-      expected = Some(Validation.Error.Parsing("BigDecimal", "foobar"))
+      expected = Error(Constraint.parsing("bigDecimal"), actual = "foobar").some
     )
   }
 
@@ -153,11 +189,11 @@ final class ValidationTest extends FunSuite {
     assert(parsing.bigInt.run("0").isValid)
     assertEquals(
       obtained = parsing.bigInt.run("3.14").error,
-      expected = Some(Validation.Error.Parsing("BigInt", "3.14"))
+      expected = Error(Constraint.parsing("bigInt"), actual = "3.14").some
     )
     assertEquals(
       obtained = parsing.bigInt.run("foobar").error,
-      expected = Some(Validation.Error.Parsing("BigInt", "foobar"))
+      expected = Error(Constraint.parsing("bigInt"), actual = "foobar").some
     )
   }
 
@@ -166,7 +202,7 @@ final class ValidationTest extends FunSuite {
     assert(parsing.double.run("3").isValid)
     assertEquals(
       obtained = parsing.double.run("foobar").error,
-      expected = Some(Validation.Error.Parsing("Double", "foobar"))
+      expected = Error(Constraint.parsing("double"), actual = "foobar").some
     )
   }
 
@@ -175,7 +211,7 @@ final class ValidationTest extends FunSuite {
     assert(parsing.float.run("3").isValid)
     assertEquals(
       obtained = parsing.float.run("foobar").error,
-      expected = Some(Validation.Error.Parsing("Float", "foobar"))
+      expected = Error(Constraint.parsing("float"), actual = "foobar").some
     )
   }
 
@@ -184,11 +220,11 @@ final class ValidationTest extends FunSuite {
     assert(parsing.int.run("0").isValid)
     assertEquals(
       obtained = parsing.int.run("3.14").error,
-      expected = Some(Validation.Error.Parsing("Int", "3.14"))
+      expected = Error(Constraint.parsing("int"), actual = "3.14").some
     )
     assertEquals(
       obtained = parsing.int.run("foobar").error,
-      expected = Some(Validation.Error.Parsing("Int", "foobar"))
+      expected = Error(Constraint.parsing("int"), actual = "foobar").some
     )
   }
 
@@ -197,11 +233,11 @@ final class ValidationTest extends FunSuite {
     assert(parsing.long.run("0").isValid)
     assertEquals(
       obtained = parsing.long.run("3.14").error,
-      expected = Some(Validation.Error.Parsing("Long", "3.14"))
+      expected = Error(Constraint.parsing("long"), actual = "3.14").some
     )
     assertEquals(
       obtained = parsing.long.run("foobar").error,
-      expected = Some(Validation.Error.Parsing("Long", "foobar"))
+      expected = Error(Constraint.parsing("long"), actual = "foobar").some
     )
   }
 
@@ -210,11 +246,11 @@ final class ValidationTest extends FunSuite {
     assert(parsing.short.run("0").isValid)
     assertEquals(
       obtained = parsing.short.run("3.14").error,
-      expected = Some(Validation.Error.Parsing("Short", "3.14"))
+      expected = Error(Constraint.parsing("short"), actual = "3.14").some
     )
     assertEquals(
       obtained = parsing.short.run("foobar").error,
-      expected = Some(Validation.Error.Parsing("Short", "foobar"))
+      expected = Error(Constraint.parsing("short"), actual = "foobar").some
     )
   }
 
@@ -223,7 +259,7 @@ final class ValidationTest extends FunSuite {
     assert(text.atLeast(reference = 3, equal = true).run("foo").isValid)
     assertEquals(
       obtained = text.atLeast(reference = 3, equal = true).run("fo").error,
-      expected = Some(Validation.Error.Text.AtLeast(equal = true, reference = 3, actual = 2))
+      expected = Error(Constraint.number.greaterThan(reference = 3, delta = 0, equal = true), actual = 2).some
     )
   }
 
@@ -232,15 +268,15 @@ final class ValidationTest extends FunSuite {
     assert(text.atMost(reference = 3, equal = true).run("foo").isValid)
     assertEquals(
       obtained = text.atMost(reference = 1, equal = true).run("foo").error,
-      expected = Some(Validation.Error.Text.AtMost(equal = true, reference = 1, actual = 3))
+      expected = Error(Constraint.number.lessThan(reference = 1, delta = 0, equal = true), actual = 3).some
     )
   }
 
-  test("text.isEmpty") {
+  test("text.empty") {
     assert(text.empty.run("").isValid)
     assertEquals(
       obtained = text.empty.run("foo").error,
-      expected = Some(Validation.Error.Text.AtMost(equal = true, reference = 0, actual = 3))
+      expected = Error(Constraint.number.lessThan(reference = 0, delta = 0, equal = true), actual = 3).some
     )
   }
 
@@ -248,16 +284,16 @@ final class ValidationTest extends FunSuite {
     assert(text.nonEmpty.run("foobar").isValid)
     assertEquals(
       obtained = text.nonEmpty.run("").error,
-      expected = Some(Validation.Error.Text.AtLeast(equal = false, reference = 0, actual = 0))
+      expected = Error(Constraint.number.greaterThan(reference = 1, delta = 0, equal = true), actual = 0).some
     )
   }
 
   test("text.exactly") {
-    assert(text.exactly(expected = 3).run("foo").isValid)
-    assert(text.exactly(expected = 0).run("").isValid)
+    assert(text.exactly(reference = 3).run("foo").isValid)
+    assert(text.exactly(reference = 0).run("").isValid)
     assertEquals(
-      obtained = text.exactly(expected = 1).run("foo").error,
-      expected = Some(Validation.Error.Text.Exactly(reference = 1, actual = 3))
+      obtained = text.exactly(reference = 1).run("foo").error,
+      expected = Error(Constraint.number.equal(reference = 1, delta = 0), actual = 3).some
     )
   }
 
@@ -267,19 +303,11 @@ final class ValidationTest extends FunSuite {
     assert(text.matches(regex = Whitespace).run("   ").isValid)
     assertEquals(
       obtained = text.matches(regex = Whitespace).run(" foobar ").error,
-      expected = Some(Validation.Error.Text.Matches(regex = Whitespace, " foobar "))
+      expected = Error(Constraint.text.matches(regex = Whitespace), actual = " foobar ").some
     )
     assertEquals(
       obtained = text.matches(regex = Whitespace).run("").error,
-      expected = Some(Validation.Error.Text.Matches(regex = Whitespace, ""))
-    )
-  }
-
-  test("text.email") {
-    assert(text.email.run("mail@taig.io").isValid)
-    assertEquals(
-      obtained = text.email.run("foobar").error,
-      expected = Some(Validation.Error.Text.Email("foobar"))
+      expected = Error(Constraint.text.matches(regex = Whitespace), actual = "").some
     )
   }
 
@@ -289,7 +317,8 @@ final class ValidationTest extends FunSuite {
 
     assertEquals(
       obtained = validation.toDebugString,
-      expected = "(a.length > 0).andThen(b => (b.length > 3) && (b.length <= 10))"
+      expected =
+        "[greaterThan(reference=1, delta=0, equal=true), greaterThan(reference=3, delta=0, equal=false), lessThan(reference=10, delta=0, equal=true)]"
     )
   }
 }

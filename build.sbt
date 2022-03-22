@@ -3,7 +3,6 @@ import sbtcrossproject.CrossProject
 val Version = new {
   val Cats = "2.7.0"
   val Circe = "0.14.1"
-  val DisciplineMunit = "1.0.9"
   val Java = "11"
   val Munit = "0.7.29"
   val Scala213 = "2.13.8"
@@ -47,15 +46,13 @@ lazy val root = module(identifier = None)
         Nil
     }
   )
-  .aggregate(core, generic, jsonCirce)
+  .aggregate(core, jsonCirce)
 
 lazy val core = module(identifier = Some("core"))
   .settings(
     libraryDependencies ++=
       "org.typelevel" %%% "cats-core" % Version.Cats ::
         "org.scalameta" %%% "munit" % Version.Munit % "test" ::
-        "org.typelevel" %%% "cats-laws" % Version.Cats % "test" ::
-        "org.typelevel" %%% "discipline-munit" % Version.DisciplineMunit % "test" ::
         Nil
   )
   .jsSettings(
@@ -63,8 +60,6 @@ lazy val core = module(identifier = Some("core"))
       "io.github.cquiroz" %%% "scala-java-time" % Version.ScalaJavaTime % "test" ::
         Nil
   )
-
-lazy val generic = module(identifier = Some("generic")).dependsOn(core % "compile->compile;test->test")
 
 lazy val jsonCirce = module(identifier = Some("json-circe"))
   .settings(
