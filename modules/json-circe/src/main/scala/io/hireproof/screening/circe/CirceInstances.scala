@@ -4,7 +4,7 @@ import cats.data.{NonEmptyList, NonEmptyMap}
 import cats.syntax.all._
 import io.circe.syntax._
 import io.circe.{Error => _, _}
-import io.hireproof.screening.{Actual, Constraint, Error, Reference, Selection, Violations}
+import io.hireproof.screening.{Actual, Constraint, Reference, Selection, Violation, Violations}
 
 trait CirceInstances {
   implicit val decoderConstraintValue: Decoder[Constraint.Value] = Decoder.instance { cursor =>
@@ -37,29 +37,29 @@ trait CirceInstances {
       ).filter { case (_, json) => !json.isNull }
   }
 
-  implicit val decoderError: Decoder[Error] = Decoder.instance { cursor =>
+  implicit val decoderViolation: Decoder[Violation] = Decoder.instance { cursor =>
     cursor.get[String]("type").flatMap {
       case "constraint" =>
-        (cursor.as[Constraint], cursor.get[String]("actual").map(Actual.apply)).mapN(Error.BrokenConstraint.apply)
-      case "conflict" => cursor.get[String]("actual").map(Actual.apply).map(Error.Conflict.apply)
+        (cursor.as[Constraint], cursor.get[String]("actual").map(Actual.apply)).mapN(Violation.BrokenConstraint.apply)
+      case "conflict" => cursor.get[String]("actual").map(Actual.apply).map(Violation.Conflict.apply)
       case "invalid" =>
         (
           cursor.get[Option[String]]("reference").map(_.map(Reference.apply)),
           cursor.get[String]("actual").map(Actual.apply)
-        ).mapN(Error.Invalid.apply)
-      case "missing" => cursor.get[Option[String]]("reference").map(_.map(Reference.apply)).map(Error.Missing.apply)
-      case "unknown" => cursor.get[String]("actual").map(Actual.apply).map(Error.Unknown.apply)
+        ).mapN(Violation.Invalid.apply)
+      case "missing" => cursor.get[Option[String]]("reference").map(_.map(Reference.apply)).map(Violation.Missing.apply)
+      case "unknown" => cursor.get[String]("actual").map(Actual.apply).map(Violation.Unknown.apply)
     }
   }
 
-  implicit val encoderError: Encoder.AsObject[Error] = Encoder.AsObject.instance {
-    case Error.BrokenConstraint(constraint, actual) =>
+  implicit val encoderViolation: Encoder.AsObject[Violation] = Encoder.AsObject.instance {
+    case Violation.BrokenConstraint(constraint, actual) =>
       JsonObject("type" := "constraint", "actual" := actual.value) deepMerge constraint.asJsonObject
-    case Error.Conflict(actual) => JsonObject("type" := "conflict", "actual" := actual.value)
-    case Error.Invalid(reference, actual) =>
+    case Violation.Conflict(actual) => JsonObject("type" := "conflict", "actual" := actual.value)
+    case Violation.Invalid(reference, actual) =>
       JsonObject("type" := "invalid", "reference" := reference.map(_.value), "actual" := actual.value)
-    case Error.Missing(reference) => JsonObject("type" := "missing", "reference" := reference.map(_.value))
-    case Error.Unknown(actual)    => JsonObject("type" := "unknown", "actual" := actual.value)
+    case Violation.Missing(reference) => JsonObject("type" := "missing", "reference" := reference.map(_.value))
+    case Violation.Unknown(actual)    => JsonObject("type" := "unknown", "actual" := actual.value)
   }
 
   implicit val keyEncoderCursorHistory: KeyEncoder[List[CursorOp]] = KeyEncoder.instance(CursorOp.opsToPath)
@@ -69,9 +69,9 @@ trait CirceInstances {
   implicit val keyDecoderSelectionHistory: KeyDecoder[Selection.History] =
     KeyDecoder.instance(Selection.History.parse(_).toOption)
 
-  implicit def decoderViolations[A: Decoder]: Decoder[Violations[A]] =
-    Decoder[NonEmptyMap[Selection.History, NonEmptyList[A]]].map(Violations.apply)
+  implicit val decoderViolations: Decoder[Violations] =
+    Decoder[NonEmptyMap[Selection.History, NonEmptyList[Violation]]].map(Violations.apply)
 
-  implicit def encoderViolations[A: Encoder]: Encoder[Violations[A]] =
-    Encoder[NonEmptyMap[Selection.History, NonEmptyList[A]]].contramap(_.toNem)
+  implicit val encoderViolations: Encoder[Violations] =
+    Encoder[NonEmptyMap[Selection.History, NonEmptyList[Violation]]].contramap(_.toNem)
 }

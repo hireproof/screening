@@ -1,45 +1,48 @@
 package io.hireproof.screening
 
-import cats.{Semigroup, SemigroupK}
+import cats.Semigroup
 import cats.data.{NonEmptyList, NonEmptyMap}
 import cats.syntax.all._
 
 import scala.collection.immutable.SortedMap
 
-final case class Violations[A](toNem: NonEmptyMap[Selection.History, NonEmptyList[A]]) {
-  def modifyHistory(f: Selection.History => Selection.History): Violations[A] = Violations(toNem.mapKeys(f))
+final case class Violations(toNem: NonEmptyMap[Selection.History, NonEmptyList[Violation]]) {
+  def modifyHistory(f: Selection.History => Selection.History): Violations = Violations(toNem.mapKeys(f))
 
-  def modifyValues[T](f: NonEmptyList[A] => NonEmptyList[T]): Violations[T] = Violations(toNem.map(f))
+  def modifyErrors(f: NonEmptyList[Violation] => NonEmptyList[Violation]): Violations = Violations(toNem.map(f))
 
-  def map[T](f: A => T): Violations[T] = modifyValues(_.map(f))
+  def modifyError(f: Violation => Violation): Violations = modifyErrors(_.map(f))
 
-  def merge(errors: Violations[A]): Violations[A] = this <+> errors
+  def merge(violations: Violations): Violations = this |+| violations
 
-  def get(history: Selection.History): List[A] = toNem(history).map(_.toList).orEmpty
+  def get(history: Selection.History): List[Violation] = toNem(history).map(_.toList).orEmpty
+
+  def head(history: Selection.History): Option[Violation] = toNem(history).map(_.head)
 }
 
 object Violations {
-  def of[A](head: (Selection.History, NonEmptyList[A]), tail: (Selection.History, NonEmptyList[A])*): Violations[A] =
+  def of(
+      head: (Selection.History, NonEmptyList[Violation]),
+      tail: (Selection.History, NonEmptyList[Violation])*
+  ): Violations =
     Violations(NonEmptyMap.of(head, tail: _*))
 
-  def ofNel[A](head: (Selection.History, A), tail: (Selection.History, A)*): Violations[A] =
+  def ofNel(head: (Selection.History, Violation), tail: (Selection.History, Violation)*): Violations =
     Violations(NonEmptyMap.of(head.map(NonEmptyList.one), tail.map(_.map(NonEmptyList.one)): _*))
 
-  def one[A](history: Selection.History, values: NonEmptyList[A]): Violations[A] =
-    Violations(NonEmptyMap.one(history, values))
+  def one(history: Selection.History, violations: NonEmptyList[Violation]): Violations =
+    Violations(NonEmptyMap.one(history, violations))
 
-  def oneNel[A](history: Selection.History, value: A): Violations[A] = one(history, NonEmptyList.one(value))
+  def oneNel(history: Selection.History, violation: Violation): Violations = one(history, NonEmptyList.one(violation))
 
-  def root[A](errors: NonEmptyList[A]): Violations[A] = one(Selection.History.Root, errors)
+  def root(violations: NonEmptyList[Violation]): Violations = one(Selection.History.Root, violations)
 
-  def rootNel[A](error: A): Violations[A] = oneNel(Selection.History.Root, error)
+  def rootNel(violation: Violation): Violations = oneNel(Selection.History.Root, violation)
 
-  def fromMap[A](values: SortedMap[Selection.History, NonEmptyList[A]]): Option[Violations[A]] =
-    NonEmptyMap.fromMap(values).map(Violations[A])
+  def fromMap(values: SortedMap[Selection.History, NonEmptyList[Violation]]): Option[Violations] =
+    NonEmptyMap.fromMap(values).map(Violations.apply)
 
-  implicit val semigroupK: SemigroupK[Violations] = new SemigroupK[Violations] {
-    override def combineK[A](x: Violations[A], y: Violations[A]): Violations[A] = Violations(x.toNem |+| y.toNem)
+  implicit val semigroup: Semigroup[Violations] = new Semigroup[Violations] {
+    override def combine(x: Violations, y: Violations): Violations = x merge y
   }
-
-  implicit def semigroup[A]: Semigroup[Violations[A]] = semigroupK.algebra[A]
 }
