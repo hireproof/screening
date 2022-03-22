@@ -4,6 +4,7 @@ import cats.Applicative
 import cats.arrow.Arrow
 import cats.data.{NonEmptyList, Validated, ValidatedNel}
 import cats.syntax.all._
+import io.circe.Encoder
 import io.hireproof.screening.validations._
 
 import scala.reflect.ClassTag
@@ -64,35 +65,40 @@ object Validation {
 
   def ask[A]: Validation[A, A] = Validation(Set.empty)(Validated.validNel)
 
-  def cond[I](constraints: NonEmptyList[Constraint])(f: I => Boolean): Validation[I, Unit] =
+  def cond[I: Encoder](constraints: NonEmptyList[Constraint])(f: I => Boolean): Validation[I, Unit] =
     Validation(constraints.toList.toSet) { input =>
-      Validated.cond(f(input), (), constraints.map(Violation.Validation(_, Actual.fromAny(input))))
+      Validated.cond(f(input), (), constraints.map(Violation(_, input)))
     }
 
-  def condNel[I](constraint: Constraint)(f: I => Boolean): Validation[I, Unit] =
+  def condNel[I: Encoder](constraint: Constraint)(f: I => Boolean): Validation[I, Unit] =
     cond(NonEmptyList.one(constraint))(f)
 
-  def fromOption[I, O](constraints: NonEmptyList[Constraint])(f: I => Option[O]): Validation[I, O] =
+  def fromOption[I: Encoder, O](constraints: NonEmptyList[Constraint])(f: I => Option[O]): Validation[I, O] =
     Validation(constraints.toList.toSet) { input =>
-      f(input).toValid(constraints.map(Violation.Validation(_, Actual.fromAny(input))))
+      f(input).toValid(constraints.map(Violation(_, input)))
     }
 
-  def fromOptionNel[I, O](constraint: Constraint)(f: I => Option[O]): Validation[I, O] =
+  def fromOptionNel[I: Encoder, O](constraint: Constraint)(f: I => Option[O]): Validation[I, O] =
     fromOption(NonEmptyList.one(constraint))(f)
+
+  def required[A]: Validation[Option[A], A] = Validation(Set(Constraint.required))(
+    Validated.fromOption(_, NonEmptyList.one(Violation(Constraint.required, None)))
+  )
 
   def catchOnly[T >: Null <: Throwable]: CatchOnlyBuilder[T] = new CatchOnlyBuilder[T]
 
   final class CatchOnlyBuilder[T >: Null <: Throwable] {
-    def apply[I, O](constraints: NonEmptyList[Constraint])(f: I => O)(implicit tag: ClassTag[T]): Validation[I, O] =
+    def apply[I: Encoder, O](
+        constraints: NonEmptyList[Constraint]
+    )(f: I => O)(implicit tag: ClassTag[T]): Validation[I, O] =
       Validation(constraints.toList.toSet) { input =>
         try f(input).valid
         catch {
-          case throwable if tag.runtimeClass.isInstance(throwable) =>
-            constraints.map(Violation.Validation(_, Actual.fromAny(input))).invalid
+          case throwable if tag.runtimeClass.isInstance(throwable) => constraints.map(Violation(_, input)).invalid
         }
       }
 
-    def apply[I, O](constraint: Constraint)(f: I => O)(implicit tag: ClassTag[T]): Validation[I, O] =
+    def apply[I: Encoder, O](constraint: Constraint)(f: I => O)(implicit tag: ClassTag[T]): Validation[I, O] =
       apply(NonEmptyList.one(constraint))(f)
   }
 

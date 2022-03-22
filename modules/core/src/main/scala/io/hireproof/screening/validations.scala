@@ -1,7 +1,8 @@
 package io.hireproof.screening
 
 import cats.syntax.all._
-import cats.{Eq, Show, Traverse, UnorderedFoldable}
+import cats.{Eq, Traverse, UnorderedFoldable}
+import io.circe.Encoder
 
 import java.time._
 import java.time.format.DateTimeParseException
@@ -30,7 +31,7 @@ object validations {
   }
 
   abstract class seq[F[+a] <: Seq[a]] extends iterable[F] {
-    def contains[A: Show](reference: A): Validation[F[A], Unit] =
+    def contains[A: Encoder](reference: A): Validation[F[A], Unit] =
       Validation.condNel[F[A]](Constraint.collection.contains(reference))(_.contains(reference))
   }
 
@@ -39,7 +40,7 @@ object validations {
   object vector extends seq[Vector]
 
   object set extends iterable[Set] {
-    def contains[A: Show](reference: A): Validation[Set[A], Unit] =
+    def contains[A: Encoder](reference: A): Validation[Set[A], Unit] =
       Validation.condNel(Constraint.collection.contains(reference))(_.contains(reference))
   }
 
@@ -61,8 +62,10 @@ object validations {
   }
 
   object traversable {
-    def contains[F[_]: Traverse, A: Eq: Show](reference: A): Validation[F[A], Unit] =
+    def contains[F[_]: Traverse, A: Encoder: Eq](reference: A): Validation[F[A], Unit] = {
+      implicit val encoder: Encoder[F[A]] = Encoder[List[A]].contramap(_.toList)
       Validation.condNel[F[A]](Constraint.collection.contains(reference))(_.contains_(reference))
+    }
   }
 
   object duration {
@@ -81,42 +84,54 @@ object validations {
   }
 
   object number {
-    def equal[I: Numeric](reference: I, delta: I): Validation[I, Unit] =
-      Validation.condNel[I](Constraint.number.equal(reference, delta)) { input =>
+    def equal[I: Numeric: Encoder](reference: I, delta: I): Validation[I, Unit] =
+      Validation.condNel[I](Constraint.number.equal(reference, delta.toDouble)) { input =>
         (reference - input).abs <= delta
       }
 
-    def equal[I](reference: I)(implicit numeric: Numeric[I]): Validation[I, Unit] =
+    def equal[I: Encoder](reference: I)(implicit numeric: Numeric[I]): Validation[I, Unit] =
       equal(reference, delta = numeric.zero)
 
-    def greaterThan[I: Numeric](reference: I, equal: Boolean, delta: I): Validation[I, Unit] =
-      Validation.condNel[I](Constraint.number.greaterThan(reference, delta, equal)) { input =>
+    def greaterThan[I: Numeric: Encoder](reference: I, equal: Boolean, delta: I): Validation[I, Unit] =
+      Validation.condNel[I](Constraint.number.greaterThan(reference, delta.toDouble, equal)) { input =>
         if (equal) input - reference >= -delta else input - reference > -delta
       }
 
-    def greaterThanEqual[I](reference: I)(implicit numeric: Numeric[I]): Validation[I, Unit] =
-      greaterThan(reference, equal = true, delta = numeric.zero)
+    def greaterThanEqual[I: Numeric: Encoder](reference: I, delta: I): Validation[I, Unit] =
+      greaterThan(reference, equal = true, delta)
 
-    def greaterThanNotEqual[I](reference: I)(implicit numeric: Numeric[I]): Validation[I, Unit] =
-      greaterThan(reference, equal = false, delta = numeric.zero)
+    def greaterThanEqual[I: Encoder](reference: I)(implicit numeric: Numeric[I]): Validation[I, Unit] =
+      greaterThanEqual(reference, delta = numeric.zero)
 
-    def lessThan[I: Numeric](reference: I, equal: Boolean, delta: I): Validation[I, Unit] =
-      Validation.condNel[I](Constraint.number.lessThan(reference, delta, equal)) { input =>
+    def greaterThanNotEqual[I: Numeric: Encoder](reference: I, delta: I): Validation[I, Unit] =
+      greaterThan(reference, equal = false, delta)
+
+    def greaterThanNotEqual[I: Encoder](reference: I)(implicit numeric: Numeric[I]): Validation[I, Unit] =
+      greaterThanNotEqual(reference, delta = numeric.zero)
+
+    def lessThan[I: Numeric: Encoder](reference: I, equal: Boolean, delta: I): Validation[I, Unit] =
+      Validation.condNel[I](Constraint.number.lessThan(reference, delta.toDouble, equal)) { input =>
         if (equal) reference - input >= -delta else reference - input > -delta
       }
 
-    def lessThanEqual[I](reference: I)(implicit numeric: Numeric[I]): Validation[I, Unit] =
-      lessThan(reference, equal = true, delta = numeric.zero)
+    def lessThanEqual[I: Numeric: Encoder](reference: I, delta: I): Validation[I, Unit] =
+      lessThan(reference, equal = true, delta)
 
-    def lessThanNotEqual[I](reference: I)(implicit numeric: Numeric[I]): Validation[I, Unit] =
-      lessThan(reference, equal = false, delta = numeric.zero)
+    def lessThanEqual[I: Encoder](reference: I)(implicit numeric: Numeric[I]): Validation[I, Unit] =
+      lessThanEqual(reference, delta = numeric.zero)
+
+    def lessThanNotEqual[I: Numeric: Encoder](reference: I, delta: I): Validation[I, Unit] =
+      lessThan(reference, equal = false, delta)
+
+    def lessThanNotEqual[I: Encoder](reference: I)(implicit numeric: Numeric[I]): Validation[I, Unit] =
+      lessThanNotEqual(reference, delta = numeric.zero)
   }
 
-  def oneOf[I: Show](references: Set[I]): Validation[I, Unit] =
+  def oneOf[I: Encoder](references: Set[I]): Validation[I, Unit] =
     Validation.condNel(Constraint.oneOf(references))(references.contains)
 
   object optional {
-    def isDefined[A]: Validation[Option[A], A] = Validation.fromOptionNel(Constraint.optional.isDefined)(identity)
+    def isDefined[A]: Validation[Option[A], A] = Validation.required
   }
 
   object parsing {
@@ -175,7 +190,7 @@ object validations {
     def exactly(reference: Int): Validation[String, Unit] = length.andThen(number.equal(reference, delta = 0))
 
     def matches(regex: Regex): Validation[String, Unit] =
-      Validation.condNel(Constraint.text.matches(regex))(regex.matches)
+      Validation.condNel[String](Constraint.text.matches(regex))(regex.matches)
 
     val required: Validation[String, String] = trim.andThen(nonEmpty.tap)
   }

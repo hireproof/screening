@@ -1,10 +1,10 @@
 package io.hireproof.screening
 
-import cats.Show
 import cats.syntax.all._
+import io.circe.syntax._
+import io.circe.{Encoder, Json}
 
 import java.time.ZonedDateTime
-import scala.Numeric.Implicits._
 import scala.concurrent.duration.FiniteDuration
 import scala.util.matching.Regex
 
@@ -18,15 +18,15 @@ object Constraint {
       left.map(_.toDebugString).mkString("[", ", ", "]") + " || " + right.map(_.toDebugString).mkString("[", ", ", "]")
   }
 
-  final case class Value(
+  final case class Rule(
       identifier: Constraint.Identifier,
-      reference: Option[Reference],
-      delta: Option[Constraint.Delta],
+      reference: Option[Json],
+      delta: Option[Double],
       equal: Option[Boolean]
   ) extends Constraint {
     override def toDebugString: String = {
-      val parameters = reference.map(reference => s"reference=${reference.value}").toList ++
-        delta.map(delta => s"delta=${delta.value}").toList ++
+      val parameters = reference.map(reference => s"reference=$reference").toList ++
+        delta.map(delta => s"delta=${String.format(if (delta % 1.0d != 0) "%s" else "%.0f", delta)}").toList ++
         equal.map(equal => s"equal=$equal").toList
       s"${identifier.value}(${parameters.mkString(", ")})"
     }
@@ -47,75 +47,60 @@ object Constraint {
     val Required: Constraint.Identifier = Identifier("required")
   }
 
-  final case class Delta(value: String) extends AnyVal
-
-  object Delta {
-    def fromShow[A: Show](value: A): Delta = Delta(value.show)
-
-    def fromNumeric[A: Numeric](value: A): Delta = {
-      val double = value.toDouble
-      Delta(String.format(if (double % 1.0d != 0) "%s" else "%.0f", double))
-    }
-  }
-
-  def apply(identifier: Identifier, reference: Reference, delta: Delta, equal: Boolean): Constraint =
-    Value(identifier, reference.some, delta.some, equal.some)
-  def apply(identifier: Identifier, reference: Reference, delta: Delta): Constraint =
-    Value(identifier, reference.some, delta.some, equal = none)
-  def apply(identifier: Identifier, reference: Reference, equal: Boolean): Constraint =
-    Value(identifier, reference.some, delta = none, equal.some)
-  def apply(identifier: Identifier, reference: Reference): Constraint =
-    Value(identifier, reference.some, delta = none, equal = none)
-  def apply(identifier: Identifier): Constraint = Value(identifier, reference = none, delta = none, equal = none)
+  def apply[A: Encoder](identifier: Identifier, reference: A, delta: Double, equal: Boolean): Constraint =
+    Rule(identifier, reference.asJson.some, delta.some, equal.some)
+  def apply[A: Encoder](identifier: Identifier, reference: A, delta: Double): Constraint =
+    Rule(identifier, reference.asJson.some, delta.some, equal = none)
+  def apply[A: Encoder](identifier: Identifier, reference: A, equal: Boolean): Constraint =
+    Rule(identifier, reference.asJson.some, delta = none, equal.some)
+  def apply[A: Encoder](identifier: Identifier, reference: A): Constraint =
+    Rule(identifier, reference.asJson.some, delta = none, equal = none)
+  def apply(identifier: Identifier): Constraint = Rule(identifier, reference = none, delta = none, equal = none)
 
   object collection {
-    def contains[A: Show](reference: A): Constraint = Constraint(Identifier.Contains, Reference.fromShow(reference))
+    def contains[A: Encoder](reference: A): Constraint = Constraint(Identifier.Contains, reference.asJson)
   }
 
   object duration {
-    def equal(reference: FiniteDuration): Constraint =
-      Constraint(Identifier.Equal, Reference.fromShow(reference))
+    def equal(reference: FiniteDuration): Constraint = Constraint(Identifier.Equal, reference)
 
     def greaterThan(reference: FiniteDuration, equal: Boolean): Constraint =
-      Constraint(Identifier.GreaterThan, Reference.fromShow(reference), equal)
+      Constraint(Identifier.GreaterThan, reference, equal)
 
     def lessThan(reference: FiniteDuration, equal: Boolean): Constraint =
-      Constraint(Identifier.LessThan, Reference.fromShow(reference), equal)
+      Constraint(Identifier.LessThan, reference, equal)
   }
 
   object number {
-    def equal[A: Numeric](reference: A, delta: A): Constraint =
-      Constraint(Identifier.Equal, Reference.fromNumeric(reference), Delta.fromNumeric(delta))
+    def equal[A: Encoder](reference: A, delta: Double = 0d): Constraint =
+      Constraint(Identifier.Equal, reference, delta)
 
-    def greaterThan[A: Numeric](reference: A, delta: A, equal: Boolean): Constraint =
-      Constraint(Identifier.GreaterThan, Reference.fromNumeric(reference), Delta.fromNumeric(delta), equal)
+    def greaterThan[A: Encoder](reference: A, delta: Double = 0d, equal: Boolean = true): Constraint =
+      Constraint(Identifier.GreaterThan, reference, delta, equal)
 
-    def lessThan[A: Numeric](reference: A, delta: A, equal: Boolean): Constraint =
-      Constraint(Identifier.LessThan, Reference.fromNumeric(reference), Delta.fromNumeric(delta), equal)
+    def lessThan[A: Encoder](reference: A, delta: Double = 0d, equal: Boolean = true): Constraint =
+      Constraint(Identifier.LessThan, reference, delta, equal)
   }
 
-  def oneOf[A: Show](references: Set[A]): Constraint =
-    Constraint(Identifier.OneOf, Reference.fromIterable(references))
-
-  object optional {
-    val isDefined: Constraint = Constraint(Identifier.Required)
-  }
+  def oneOf[A: Encoder](references: Set[A]): Constraint = Constraint(Identifier.OneOf, references)
 
   def parsing(name: String): Constraint = Constraint(Identifier(name))
 
   object text {
     val email: Constraint = Constraint(Identifier.Email)
 
-    def equal(reference: String): Constraint = Constraint(Identifier.Equal, Reference(reference))
+    def equal(reference: String): Constraint = Constraint(Identifier.Equal, reference)
 
-    def matches(regex: Regex): Constraint = Constraint(Identifier.Matches, Reference(regex.regex))
+    def matches(regex: Regex): Constraint = Constraint(Identifier.Matches, regex.regex)
   }
 
-  object time {
-    def after(reference: ZonedDateTime, equal: Boolean): Constraint =
-      Constraint(Identifier.After, Reference(reference.toString), equal)
+  val required: Constraint = Constraint(Identifier.Required)
 
-    def before(reference: ZonedDateTime, equal: Boolean): Constraint =
-      Constraint(Identifier.Before, Reference(reference.toString), equal)
+  object time {
+    def after(reference: ZonedDateTime, equal: Boolean = true): Constraint =
+      Constraint(Identifier.After, reference, equal)
+
+    def before(reference: ZonedDateTime, equal: Boolean = true): Constraint =
+      Constraint(Identifier.Before, reference, equal)
   }
 }
