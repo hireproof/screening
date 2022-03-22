@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.0.13
+
+_2022-03-22_
+
+* Overall structure rework switching to loosely typed constraints to increase flexibility
+
 ## 0.0.12
 
 _2022-03-10_
