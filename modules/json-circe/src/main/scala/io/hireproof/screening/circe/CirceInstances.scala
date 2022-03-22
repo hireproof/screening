@@ -40,15 +40,15 @@ trait CirceInstances {
   implicit val decoderError: Decoder[Error] = Decoder.instance { cursor =>
     cursor.get[String]("type").flatMap {
       case "constraint" =>
-        (cursor.as[Constraint], cursor.get[String]("actual").map(Actual.apply)).mapN(Error.BrokenConstraint)
-      case "conflict" => cursor.get[String]("actual").map(Actual.apply).map(Error.Conflict)
+        (cursor.as[Constraint], cursor.get[String]("actual").map(Actual.apply)).mapN(Error.BrokenConstraint.apply)
+      case "conflict" => cursor.get[String]("actual").map(Actual.apply).map(Error.Conflict.apply)
       case "invalid" =>
         (
           cursor.get[Option[String]]("reference").map(_.map(Reference.apply)),
           cursor.get[String]("actual").map(Actual.apply)
-        ).mapN(Error.Invalid)
-      case "missing" => cursor.get[Option[String]]("reference").map(_.map(Reference.apply)).map(Error.Missing)
-      case "unknown" => cursor.get[String]("actual").map(Actual.apply).map(Error.Unknown)
+        ).mapN(Error.Invalid.apply)
+      case "missing" => cursor.get[Option[String]]("reference").map(_.map(Reference.apply)).map(Error.Missing.apply)
+      case "unknown" => cursor.get[String]("actual").map(Actual.apply).map(Error.Unknown.apply)
     }
   }
 

@@ -14,7 +14,7 @@ import scala.util.matching.Regex
 
 object validations {
   abstract class iterable[F[a] <: Iterable[a]] {
-    val size: Validation[F[_], Int] = Validation.lift(_.size)
+    def size[A]: Validation[F[A], Int] = Validation.lift(_.size)
 
     def atLeast[A](reference: Int, equal: Boolean = true): Validation[F[A], Unit] =
       size.andThen(number.greaterThan(reference, equal, delta = 0))
@@ -29,7 +29,7 @@ object validations {
     def exactly[A](reference: Int): Validation[F[A], Unit] = size.andThen(number.equal(reference))
   }
 
-  abstract class seq[F[a] <: Seq[a]] extends iterable[F] {
+  abstract class seq[F[+a] <: Seq[a]] extends iterable[F] {
     def contains[A: Show](reference: A): Validation[F[A], Unit] =
       Validation.condNel[F[A]](Constraint.collection.contains(reference))(_.contains(reference))
   }
@@ -44,20 +44,20 @@ object validations {
   }
 
   object foldable {
-    def size[F[_]: UnorderedFoldable]: Validation[F[_], Long] = Validation.lift(_.size)
+    def size[F[_]: UnorderedFoldable, A]: Validation[F[A], Long] = Validation.lift[F[A], Long](_.size)
 
     def atLeast[F[_]: UnorderedFoldable, A](reference: Long, equal: Boolean = true): Validation[F[A], Unit] =
-      size[F].andThen(number.greaterThan(reference, equal, delta = 0L))
+      size[F, A].andThen(number.greaterThan(reference, equal, delta = 0L))
 
     def atMost[F[_]: UnorderedFoldable, A](reference: Long, equal: Boolean = true): Validation[F[A], Unit] =
-      size[F].andThen(number.lessThan(reference, equal, delta = 0L))
+      size[F, A].andThen(number.lessThan(reference, equal, delta = 0L))
 
     def empty[F[_]: UnorderedFoldable, A]: Validation[F[A], Unit] = atMost(reference = 0)
 
     def nonEmpty[F[_]: UnorderedFoldable, A]: Validation[F[A], Unit] = atLeast(reference = 1)
 
     def exactly[F[_]: UnorderedFoldable, A](reference: Long): Validation[F[A], Unit] =
-      size[F].andThen(number.equal(reference))
+      size[F, A].andThen(number.equal(reference))
   }
 
   object traversable {

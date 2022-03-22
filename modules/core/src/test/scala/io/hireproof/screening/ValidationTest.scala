@@ -87,15 +87,15 @@ final class ValidationTest extends FunSuite {
   }
 
   test("number.greaterThan (delta)") {
-    assert(number.greaterThan(reference = 1, delta = 0.5d, equal = true).run(0.75d).isValid)
-    assert(number.greaterThan(reference = 1, delta = 0.5d, equal = true).run(0.5d).isValid)
+    assert(number.greaterThan(reference = 1d, delta = 0.5d, equal = true).run(0.75d).isValid)
+    assert(number.greaterThan(reference = 1d, delta = 0.5d, equal = true).run(0.5d).isValid)
     assertEquals(
-      obtained = number.greaterThan(reference = 1, delta = 0.5d, equal = false).run(0.5d).error,
-      expected = Error(Constraint.number.greaterThan(reference = 1, delta = 0.5d, equal = false), actual = 0.5d).some
+      obtained = number.greaterThan(reference = 1d, delta = 0.5d, equal = false).run(0.5d).error,
+      expected = Error(Constraint.number.greaterThan(reference = 1d, delta = 0.5d, equal = false), actual = 0.5d).some
     )
     assertEquals(
-      obtained = number.greaterThan(reference = 1, delta = 0.5d, equal = true).run(0.25d).error,
-      expected = Error(Constraint.number.greaterThan(reference = 1, delta = 0.5d, equal = true), actual = 0.25d).some
+      obtained = number.greaterThan(reference = 1d, delta = 0.5d, equal = true).run(0.25d).error,
+      expected = Error(Constraint.number.greaterThan(reference = 1d, delta = 0.5d, equal = true), actual = 0.25d).some
     )
   }
 
@@ -133,15 +133,15 @@ final class ValidationTest extends FunSuite {
   }
 
   test("number.lessThan (delta)") {
-    assert(number.lessThan(reference = 1, delta = 0.5d, equal = true).run(1.25d).isValid)
-    assert(number.lessThan(reference = 1, delta = 0.5d, equal = true).run(1.5d).isValid)
+    assert(number.lessThan(reference = 1d, delta = 0.5d, equal = true).run(1.25d).isValid)
+    assert(number.lessThan(reference = 1d, delta = 0.5d, equal = true).run(1.5d).isValid)
     assertEquals(
-      obtained = number.lessThan(reference = 1, delta = 0.5d, equal = false).run(1.5d).error,
-      expected = Error(Constraint.number.lessThan(reference = 1, delta = 0.5d, equal = false), actual = 1.5d).some
+      obtained = number.lessThan(reference = 1d, delta = 0.5d, equal = false).run(1.5d).error,
+      expected = Error(Constraint.number.lessThan(reference = 1d, delta = 0.5d, equal = false), actual = 1.5d).some
     )
     assertEquals(
-      obtained = number.lessThan(reference = 1, delta = 0.5d, equal = true).run(1.75d).error,
-      expected = Error(Constraint.number.lessThan(reference = 1, delta = 0.5d, equal = true), actual = 1.75d).some
+      obtained = number.lessThan(reference = 1d, delta = 0.5d, equal = true).run(1.75d).error,
+      expected = Error(Constraint.number.lessThan(reference = 1d, delta = 0.5d, equal = true), actual = 1.75d).some
     )
   }
 
@@ -164,8 +164,8 @@ final class ValidationTest extends FunSuite {
       expected = Error(Constraint.number.equal(reference = 1, delta = 0), actual = 3).some
     )
     assertEquals(
-      obtained = number.equal(0.3d, 0).run(0.1d + 0.2d).error,
-      expected = Error(Constraint.number.equal(reference = 0.3d, delta = 0), actual = 0.1d + 0.2d).some
+      obtained = number.equal(0.3d, 0d).run(0.1d + 0.2d).error,
+      expected = Error(Constraint.number.equal(reference = 0.3d, delta = 0d), actual = 0.1d + 0.2d).some
     )
   }
 
