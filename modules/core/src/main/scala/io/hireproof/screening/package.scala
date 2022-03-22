@@ -11,4 +11,9 @@ package object screening {
 
     def error: Option[E] = validated.fold(_.head.some, _ => none)
   }
+
+  private[screening] def anyToString(value: Any): String = value match {
+    case iterable: Iterable[_] => iterable.mkString("[", ", ", "]")
+    case _                     => value.toString
+  }
 }

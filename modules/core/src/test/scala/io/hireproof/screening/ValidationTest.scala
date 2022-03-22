@@ -12,7 +12,7 @@ final class ValidationTest extends FunSuite {
     assert(list.atLeast(reference = 3).run(List(1, 2, 3)).isValid)
     assertEquals(
       obtained = list.atLeast(reference = 3).run(List(1)).error,
-      expected = Violation(Constraint.number.greaterThan(reference = 3, equal = true, delta = 0), actual = 1).some
+      expected = Violation(Constraint.number.greaterThan(reference = 3, equal = true, delta = 0), actual = "1").some
     )
   }
 
@@ -21,7 +21,7 @@ final class ValidationTest extends FunSuite {
     assert(list.atMost(reference = 3).run(List(1, 2, 3)).isValid)
     assertEquals(
       obtained = list.atMost(reference = 1).run(List(1, 2, 3)).error,
-      expected = Violation(Constraint.number.lessThan(reference = 1, equal = true, delta = 0), actual = 3).some
+      expected = Violation(Constraint.number.lessThan(reference = 1, equal = true, delta = 0), actual = "3").some
     )
   }
 
@@ -29,7 +29,7 @@ final class ValidationTest extends FunSuite {
     assert(list.empty.run(Nil).isValid)
     assertEquals(
       obtained = list.empty.run(List(1, 2, 3)).error,
-      expected = Violation(Constraint.number.lessThan(reference = 0, equal = true, delta = 0), actual = 3).some
+      expected = Violation(Constraint.number.lessThan(reference = 0, equal = true, delta = 0), actual = "3").some
     )
   }
 
@@ -37,7 +37,7 @@ final class ValidationTest extends FunSuite {
     assert(list.nonEmpty.run(List(1, 2, 3)).isValid)
     assertEquals(
       obtained = list.nonEmpty.run(Nil).error,
-      expected = Violation(Constraint.number.greaterThan(reference = 1, equal = true, delta = 0), actual = 0).some
+      expected = Violation(Constraint.number.greaterThan(reference = 1, equal = true, delta = 0), actual = "0").some
     )
   }
 
@@ -46,7 +46,7 @@ final class ValidationTest extends FunSuite {
     assert(list.exactly(reference = 0).run(Nil).isValid)
     assertEquals(
       obtained = list.exactly(reference = 3).run(List(1)).error,
-      expected = Violation(Constraint.number.equal(reference = 3, delta = 0), actual = 1).some
+      expected = Violation(Constraint.number.equal(reference = 3, delta = 0), actual = "1").some
     )
   }
 
@@ -54,7 +54,7 @@ final class ValidationTest extends FunSuite {
     assert(list.contains(reference = "foobar").run(List("foo", "foobar", "bar")).isValid)
     assertEquals(
       obtained = list.contains(reference = "foobar").run(List("foo", "bar")).error,
-      expected = Violation(Constraint.collection.contains(reference = "foobar"), actual = List("foo", "bar")).some
+      expected = Violation(Constraint.collection.contains(reference = "foobar"), actual = "[foo, bar]").some
     )
   }
 
@@ -67,7 +67,7 @@ final class ValidationTest extends FunSuite {
       obtained = time.after(sample).run(sample.minusSeconds(100)).error,
       expected = Violation(
         Constraint.time.after(sample.atZone(ZoneOffset.UTC), equal = true),
-        actual = sample.minusSeconds(100)
+        actual = sample.minusSeconds(100).toString
       ).some
     )
   }
@@ -81,7 +81,7 @@ final class ValidationTest extends FunSuite {
       obtained = time.before(sample).run(sample.plusSeconds(100)).error,
       expected = Violation(
         Constraint.time.before(sample.atZone(ZoneOffset.UTC), equal = true),
-        actual = sample.plusSeconds(100)
+        actual = sample.plusSeconds(100).toString
       ).some
     )
   }
@@ -92,12 +92,12 @@ final class ValidationTest extends FunSuite {
     assertEquals(
       obtained = number.greaterThan(reference = 1d, delta = 0.5d, equal = false).run(0.5d).error,
       expected =
-        Violation(Constraint.number.greaterThan(reference = 1d, delta = 0.5d, equal = false), actual = 0.5d).some
+        Violation(Constraint.number.greaterThan(reference = 1d, delta = 0.5d, equal = false), actual = "0.5").some
     )
     assertEquals(
       obtained = number.greaterThan(reference = 1d, delta = 0.5d, equal = true).run(0.25d).error,
       expected =
-        Violation(Constraint.number.greaterThan(reference = 1d, delta = 0.5d, equal = true), actual = 0.25d).some
+        Violation(Constraint.number.greaterThan(reference = 1d, delta = 0.5d, equal = true), actual = "0.25").some
     )
   }
 
@@ -105,11 +105,11 @@ final class ValidationTest extends FunSuite {
     assert(number.greaterThanNotEqual(reference = 1).run(3).isValid)
     assertEquals(
       obtained = number.greaterThanNotEqual(reference = 3).run(3).error,
-      expected = Violation(Constraint.number.greaterThan(reference = 3, delta = 0, equal = false), actual = 3).some
+      expected = Violation(Constraint.number.greaterThan(reference = 3, delta = 0, equal = false), actual = "3").some
     )
     assertEquals(
       obtained = number.greaterThanNotEqual(3).run(1).error,
-      expected = Violation(Constraint.number.greaterThan(reference = 3, delta = 0, equal = false), actual = 1).some
+      expected = Violation(Constraint.number.greaterThan(reference = 3, delta = 0, equal = false), actual = "1").some
     )
   }
 
@@ -118,7 +118,7 @@ final class ValidationTest extends FunSuite {
     assert(number.greaterThanEqual(reference = 3).run(3).isValid)
     assertEquals(
       obtained = number.greaterThanEqual(3).run(1).error,
-      expected = Violation(Constraint.number.greaterThan(reference = 3, delta = 0, equal = true), actual = 1).some
+      expected = Violation(Constraint.number.greaterThan(reference = 3, delta = 0, equal = true), actual = "1").some
     )
   }
 
@@ -126,11 +126,11 @@ final class ValidationTest extends FunSuite {
     assert(number.lessThanNotEqual(reference = 3).run(1).isValid)
     assertEquals(
       obtained = number.lessThanNotEqual(reference = 3).run(3).error,
-      expected = Violation(Constraint.number.lessThan(reference = 3, delta = 0, equal = false), actual = 3).some
+      expected = Violation(Constraint.number.lessThan(reference = 3, delta = 0, equal = false), actual = "3").some
     )
     assertEquals(
       obtained = number.lessThanNotEqual(1).run(3).error,
-      expected = Violation(Constraint.number.lessThan(reference = 1, delta = 0, equal = false), actual = 3).some
+      expected = Violation(Constraint.number.lessThan(reference = 1, delta = 0, equal = false), actual = "3").some
     )
   }
 
@@ -139,11 +139,11 @@ final class ValidationTest extends FunSuite {
     assert(number.lessThan(reference = 1d, delta = 0.5d, equal = true).run(1.5d).isValid)
     assertEquals(
       obtained = number.lessThan(reference = 1d, delta = 0.5d, equal = false).run(1.5d).error,
-      expected = Violation(Constraint.number.lessThan(reference = 1d, delta = 0.5d, equal = false), actual = 1.5d).some
+      expected = Violation(Constraint.number.lessThan(reference = 1d, delta = 0.5d, equal = false), actual = "1.5").some
     )
     assertEquals(
       obtained = number.lessThan(reference = 1d, delta = 0.5d, equal = true).run(1.75d).error,
-      expected = Violation(Constraint.number.lessThan(reference = 1d, delta = 0.5d, equal = true), actual = 1.75d).some
+      expected = Violation(Constraint.number.lessThan(reference = 1d, delta = 0.5d, equal = true), actual = "1.75").some
     )
   }
 
@@ -152,7 +152,7 @@ final class ValidationTest extends FunSuite {
     assert(number.lessThanEqual(reference = 3).run(3).isValid)
     assertEquals(
       obtained = number.lessThanEqual(1).run(3).error,
-      expected = Violation(Constraint.number.lessThan(reference = 1, delta = 0, equal = true), actual = 3).some
+      expected = Violation(Constraint.number.lessThan(reference = 1, delta = 0, equal = true), actual = "3").some
     )
   }
 
@@ -163,11 +163,11 @@ final class ValidationTest extends FunSuite {
 
     assertEquals(
       obtained = number.equal(1).run(3).error,
-      expected = Violation(Constraint.number.equal(reference = 1, delta = 0), actual = 3).some
+      expected = Violation(Constraint.number.equal(reference = 1, delta = 0), actual = "3").some
     )
     assertEquals(
       obtained = number.equal(0.3d, 0d).run(0.1d + 0.2d).error,
-      expected = Violation(Constraint.number.equal(reference = 0.3d, delta = 0d), actual = 0.1d + 0.2d).some
+      expected = Violation(Constraint.number.equal(reference = 0.3d, delta = 0d), actual = (0.1d + 0.2d).toString).some
     )
   }
 
@@ -261,7 +261,7 @@ final class ValidationTest extends FunSuite {
     assert(text.atLeast(reference = 3, equal = true).run("foo").isValid)
     assertEquals(
       obtained = text.atLeast(reference = 3, equal = true).run("fo").error,
-      expected = Violation(Constraint.number.greaterThan(reference = 3, delta = 0, equal = true), actual = 2).some
+      expected = Violation(Constraint.number.greaterThan(reference = 3, delta = 0, equal = true), actual = "2").some
     )
   }
 
@@ -270,7 +270,7 @@ final class ValidationTest extends FunSuite {
     assert(text.atMost(reference = 3, equal = true).run("foo").isValid)
     assertEquals(
       obtained = text.atMost(reference = 1, equal = true).run("foo").error,
-      expected = Violation(Constraint.number.lessThan(reference = 1, delta = 0, equal = true), actual = 3).some
+      expected = Violation(Constraint.number.lessThan(reference = 1, delta = 0, equal = true), actual = "3").some
     )
   }
 
@@ -278,7 +278,7 @@ final class ValidationTest extends FunSuite {
     assert(text.empty.run("").isValid)
     assertEquals(
       obtained = text.empty.run("foo").error,
-      expected = Violation(Constraint.number.lessThan(reference = 0, delta = 0, equal = true), actual = 3).some
+      expected = Violation(Constraint.number.lessThan(reference = 0, delta = 0, equal = true), actual = "3").some
     )
   }
 
@@ -286,7 +286,7 @@ final class ValidationTest extends FunSuite {
     assert(text.nonEmpty.run("foobar").isValid)
     assertEquals(
       obtained = text.nonEmpty.run("").error,
-      expected = Violation(Constraint.number.greaterThan(reference = 1, delta = 0, equal = true), actual = 0).some
+      expected = Violation(Constraint.number.greaterThan(reference = 1, delta = 0, equal = true), actual = "0").some
     )
   }
 
@@ -295,7 +295,7 @@ final class ValidationTest extends FunSuite {
     assert(text.exactly(reference = 0).run("").isValid)
     assertEquals(
       obtained = text.exactly(reference = 1).run("foo").error,
-      expected = Violation(Constraint.number.equal(reference = 1, delta = 0), actual = 3).some
+      expected = Violation(Constraint.number.equal(reference = 1, delta = 0), actual = "3").some
     )
   }
 

@@ -8,7 +8,7 @@ import scala.Numeric.Implicits._
 final case class Reference(value: String) extends AnyVal
 
 object Reference {
-  def fromAny(value: Any): Reference = Reference(value.toString)
+  def fromAny(value: Any): Reference = Reference(anyToString(value))
 
   def fromShow[A: Show](value: A): Reference = Reference(value.show)
 

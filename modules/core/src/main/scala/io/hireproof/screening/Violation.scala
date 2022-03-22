@@ -27,12 +27,11 @@ object Violation {
     override def constraints: Set[Constraint] = Set.empty
   }
 
-  def apply(constraint: Constraint, actual: Any): Violation = Validation(constraint, Actual.fromAny(actual))
-  def conflict(actual: Any): Violation = Conflict(Actual.fromAny(actual))
-  def invalid(reference: Any, actual: Any): Violation =
-    Invalid(Reference.fromAny(reference).some, Actual.fromAny(actual))
-  def invalid(actual: Any): Violation = Invalid(reference = none, Actual.fromAny(actual))
+  def apply(constraint: Constraint, actual: String): Violation = Validation(constraint, Actual(actual))
+  def conflict(actual: String): Violation = Conflict(Actual(actual))
+  def invalid(reference: String, actual: String): Violation = Invalid(Reference(reference).some, Actual(actual))
+  def invalid(actual: String): Violation = Invalid(reference = none, Actual(actual))
   val missing: Violation = Missing(reference = none)
-  def missing(reference: Any): Violation = Missing(Reference.fromAny(reference).some)
-  def unknown(actual: Any): Violation = Unknown(Actual.fromAny(actual))
+  def missing(reference: String): Violation = Missing(Reference(reference).some)
+  def unknown(actual: String): Violation = Unknown(Actual(actual))
 }
