@@ -29,7 +29,7 @@ trait CirceInstances {
   implicit val decoderConstraintRule: Decoder[Constraint.Rule] = Decoder.instance { cursor =>
     for {
       identifier <- cursor.get[String]("identifier").map(Constraint.Identifier.apply)
-      reference <- cursor.get[Option[Json]]("identifier")
+      reference <- cursor.get[Option[Json]]("reference")
       delta <- cursor.get[Option[Double]]("delta")
       equal <- cursor.get[Option[Boolean]]("equal")
     } yield Constraint.Rule(identifier, reference, delta, equal)
