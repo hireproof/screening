@@ -66,10 +66,10 @@ object Constraint {
   object duration {
     def equal(reference: FiniteDuration): Constraint = Constraint(Identifier.Equal, reference)
 
-    def greaterThan(reference: FiniteDuration, equal: Boolean): Constraint =
+    def greaterThan(reference: FiniteDuration, equal: Boolean = true): Constraint =
       Constraint(Identifier.GreaterThan, reference, equal)
 
-    def lessThan(reference: FiniteDuration, equal: Boolean): Constraint =
+    def lessThan(reference: FiniteDuration, equal: Boolean = true): Constraint =
       Constraint(Identifier.LessThan, reference, equal)
   }
 
