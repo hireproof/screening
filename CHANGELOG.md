@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.0.15
+
+_2022-03-23_
+
+* Add equal = true to duration constraint builders
+* Fix Violations.merge
+* Fix constraint rule decoder
+* Improve Constraint.toString
+* Fix Validation.withConstraint generator wrong Violations
+* Serialization (#11)
+* Update sbt-scalajs-crossproject to 1.2.0 (#10)
+* Only allow Strings in Violation helpers, not Any
+
 ## 0.0.14
 
 _2022-03-22_
