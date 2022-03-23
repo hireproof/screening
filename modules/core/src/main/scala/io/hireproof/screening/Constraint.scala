@@ -10,6 +10,8 @@ import scala.util.matching.Regex
 
 sealed abstract class Constraint extends Product with Serializable {
   def toDebugString: String
+
+  override def toString: String = toDebugString
 }
 
 object Constraint {
