@@ -4,7 +4,7 @@ import cats.Applicative
 import cats.arrow.Arrow
 import cats.data.{NonEmptyList, Validated, ValidatedNel}
 import cats.syntax.all._
-import io.circe.Encoder
+import io.circe.{Encoder, Json}
 import io.hireproof.screening.validations._
 
 import scala.reflect.ClassTag
@@ -23,9 +23,19 @@ abstract class Validation[-I, +O] {
 
   final def collect[T](f: PartialFunction[O, T]): Validation[I, T] = map(f.lift).required
 
-  final def modifyConstraint(f: Constraint => Constraint): Validation[I, O] = Validation(constraints.map(f))(run)
+  final def modifyConstraint(f: Constraint => Constraint): Validation[I, O] =
+    Validation(constraints.map(f))(run(_).leftMap { violations =>
+      violations.map {
+        case Violation.Validation(constraint, actual) => Violation.Validation(f(constraint), actual)
+        case violation                                => violation
+      }
+    })
 
-  final def withConstraint(constraint: Constraint): Validation[I, O] = Validation(Set(constraint))(run)
+  final def withConstraint(constraint: Constraint): Validation[I, O] =
+    Validation(Set(constraint))(run(_).leftMap { violations =>
+      val actual = violations.collectFirstSome(_.toActual).getOrElse(Json.Null)
+      NonEmptyList.one(Violation(constraint, actual))
+    })
 
   def toDebugString: String = constraints.map(_.toDebugString).mkString("[", ", ", "]")
 }
@@ -59,7 +69,7 @@ object Validation {
   def lift[A, B](f: A => B): Validation[A, B] = Validation(Set.empty)(f(_).valid)
 
   def invalid(errors: NonEmptyList[Violation]): Validation[Any, Unit] =
-    Validation(errors.foldLeft(Set.empty[Constraint])(_ ++ _.constraints))(_ => errors.invalid)
+    Validation(errors.foldLeft(Set.empty[Constraint])(_ ++ _.toConstraint))(_ => errors.invalid)
 
   def invalidNel(error: Violation): Validation[Any, Unit] = invalid(NonEmptyList.one(error))
 

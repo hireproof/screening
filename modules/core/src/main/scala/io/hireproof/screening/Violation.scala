@@ -5,28 +5,35 @@ import io.circe.syntax._
 import io.circe.{Encoder, Json}
 
 sealed abstract class Violation extends Product with Serializable {
-  def constraints: Set[Constraint]
+  def toConstraint: Option[Constraint]
+
+  def toActual: Option[Json]
 }
 
 object Violation {
   final case class Validation(constraint: Constraint, actual: Json) extends Violation {
-    override def constraints: Set[Constraint] = Set(constraint)
+    override def toConstraint: Option[Constraint] = constraint.some
+    override def toActual: Option[Json] = actual.some
   }
 
   final case class Conflict(actual: Json) extends Violation {
-    override def constraints: Set[Constraint] = Set.empty
+    override def toConstraint: Option[Constraint] = none
+    override def toActual: Option[Json] = actual.some
   }
 
   final case class Invalid(reference: Option[Json], actual: Json) extends Violation {
-    override def constraints: Set[Constraint] = Set.empty
+    override def toConstraint: Option[Constraint] = none
+    override def toActual: Option[Json] = actual.some
   }
 
   final case class Missing(reference: Option[Json]) extends Violation {
-    override def constraints: Set[Constraint] = Set.empty
+    override def toConstraint: Option[Constraint] = none
+    override def toActual: Option[Json] = none
   }
 
   final case class Unknown(actual: Json) extends Violation {
-    override def constraints: Set[Constraint] = Set.empty
+    override def toConstraint: Option[Constraint] = none
+    override def toActual: Option[Json] = actual.some
   }
 
   def apply[A: Encoder](constraint: Constraint, actual: A): Violation = Validation(constraint, actual.asJson)
