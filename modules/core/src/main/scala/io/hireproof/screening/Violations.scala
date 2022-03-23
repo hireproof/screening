@@ -13,7 +13,7 @@ final case class Violations(toNem: NonEmptyMap[Selection.History, NonEmptyList[V
 
   def modifyError(f: Violation => Violation): Violations = modifyErrors(_.map(f))
 
-  def merge(violations: Violations): Violations = this |+| violations
+  def merge(violations: Violations): Violations = Violations(toNem |+| violations.toNem)
 
   def get(history: Selection.History): List[Violation] = toNem(history).map(_.toList).orEmpty
 
