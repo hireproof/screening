@@ -1,6 +1,6 @@
 package io.hireproof.screening
 
-import cats.Applicative
+import cats.{Applicative, Traverse}
 import cats.arrow.Arrow
 import cats.data.{NonEmptyList, Validated, ValidatedNel}
 import cats.syntax.all._
@@ -90,6 +90,9 @@ object Validation {
 
   def fromOptionNel[I: Encoder, O](constraint: Constraint)(f: I => Option[O]): Validation[I, O] =
     fromOption(NonEmptyList.one(constraint))(f)
+
+  def forAll[F[_]: Traverse, I, O](validation: Validation[I, O]): Validation[F[I], F[O]] =
+    Validation(validation.constraints)(_.traverse(validation.run))
 
   def required[A]: Validation[Option[A], A] = Validation(Set(Constraint.required))(
     Validated.fromOption(_, NonEmptyList.one(Violation(Constraint.required, None)))

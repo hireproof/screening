@@ -42,6 +42,7 @@ object Constraint {
     val Contains: Constraint.Identifier = Identifier("contains")
     val Email: Constraint.Identifier = Identifier("email")
     val GreaterThan: Constraint.Identifier = Identifier("greaterThan")
+    val Json: Constraint.Identifier = Identifier("json")
     val LessThan: Constraint.Identifier = Identifier("lessThan")
     val Equal: Constraint.Identifier = Identifier("equal")
     val Matches: Constraint.Identifier = Identifier("matches")
@@ -72,6 +73,8 @@ object Constraint {
     def lessThan(reference: FiniteDuration, equal: Boolean = true): Constraint =
       Constraint(Identifier.LessThan, reference, equal)
   }
+
+  def json(reference: String): Constraint = Constraint(Identifier.Json, reference)
 
   object number {
     def equal[A: Encoder](reference: A, delta: Double = 0d): Constraint =

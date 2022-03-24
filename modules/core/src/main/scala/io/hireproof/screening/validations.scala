@@ -1,8 +1,9 @@
 package io.hireproof.screening
 
+import cats.data.Chain
 import cats.syntax.all._
 import cats.{Eq, Traverse, UnorderedFoldable}
-import io.circe.Encoder
+import io.circe.{Decoder, Encoder, Json, JsonObject}
 
 import java.time._
 import java.time.format.DateTimeParseException
@@ -81,6 +82,17 @@ object validations {
 
     def equal(reference: FiniteDuration): Validation[FiniteDuration, Unit] =
       Validation.condNel(Constraint.duration.equal(reference))(_ == reference)
+  }
+
+  object json {
+    def apply[A: Decoder](reference: String): Validation[Json, A] =
+      Validation.fromOptionNel(Constraint.json(reference))(_.as[A].toOption)
+
+    val array: Validation[Json, Chain[Json]] =
+      Validation.fromOptionNel(Constraint.json(reference = "[]"))(_.as[Chain[Json]].toOption)
+
+    val obj: Validation[Json, JsonObject] =
+      Validation.fromOptionNel(Constraint.json(reference = "{}"))(_.as[JsonObject].toOption)
   }
 
   object number {
