@@ -4,6 +4,7 @@ import cats.data.Chain
 import cats.syntax.all._
 import cats.{Eq, Traverse, UnorderedFoldable}
 import io.circe.{Decoder, Encoder, Json, JsonObject}
+import io.circe.parser.parse
 
 import java.time._
 import java.time.format.DateTimeParseException
@@ -173,6 +174,7 @@ object validations {
     val offsetDateTime: Validation[String, OffsetDateTime] =
       catchOnly[DateTimeParseException]("offsetDateTime")(OffsetDateTime.parse)
     val offsetTime: Validation[String, OffsetTime] = catchOnly[DateTimeParseException]("offsetTime")(OffsetTime.parse)
+    val json: Validation[String, Json] = parsing("json")(parse(_).toOption)
     val short: Validation[String, Short] = parsing("short")(_.toShortOption)
     val uuid: Validation[String, UUID] = catchOnly[IllegalArgumentException]("uuid")(UUID.fromString)
     val zonedDateTime: Validation[String, ZonedDateTime] =

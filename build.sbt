@@ -51,7 +51,7 @@ lazy val root = module(identifier = None)
 lazy val core = module(identifier = Some("core"))
   .settings(
     libraryDependencies ++=
-      "io.circe" %%% "circe-core" % Version.Circe ::
+      "io.circe" %%% "circe-parser" % Version.Circe ::
         "org.typelevel" %%% "cats-core" % Version.Cats ::
         "org.scalameta" %%% "munit" % Version.Munit % "test" ::
         Nil
