@@ -89,11 +89,20 @@ object validations {
     def apply[A: Decoder](reference: String): Validation[Json, A] =
       Validation.fromOptionNel(Constraint.json(reference))(_.as[A].toOption)
 
+    def field(name: String): Validation[Json, Json] =
+      Validation.fromOptionNel(Constraint.json(reference = name))(_.hcursor.downField(name).focus)
+
+    def index(i: Int): Validation[Json, Json] =
+      Validation.fromOptionNel(Constraint.json(reference = String.valueOf(i)))(_.hcursor.downN(i).focus)
+
     val array: Validation[Json, Chain[Json]] =
       Validation.fromOptionNel(Constraint.json(reference = "[]"))(_.as[Chain[Json]].toOption)
 
     val obj: Validation[Json, JsonObject] =
       Validation.fromOptionNel(Constraint.json(reference = "{}"))(_.as[JsonObject].toOption)
+
+    val string: Validation[Json, String] =
+      Validation.fromOptionNel(Constraint.json(reference = "String"))(_.asString)
   }
 
   object number {
