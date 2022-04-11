@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.0.16
+
+_2022-04-11_
+
+* Add json validation rules
+* Add parsing.json
+* Update sbt-scalajs, scalajs-compiler, ... to 1.10.0 (#12)
+
 ## 0.0.15
 
 _2022-03-23_
