@@ -91,6 +91,9 @@ object Validation {
   def fromOptionNel[I: Encoder, O](constraint: Constraint)(f: I => Option[O]): Validation[I, O] =
     fromOption(NonEmptyList.one(constraint))(f)
 
+  def option[I, O](validation: Validation[I, O]): Validation[Option[I], Option[O]] =
+    Validation(validation.constraints)(_.traverse(validation.run))
+
   def required[A]: Validation[Option[A], A] = Validation(Set(Constraint.required))(
     Validated.fromOption(_, NonEmptyList.one(Violation(Constraint.required, None)))
   )
