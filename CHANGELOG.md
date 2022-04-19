@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.0.17
+
+_2022-04-19_
+
+* Add `Validation.option`
+* Remove `Validation.forAll`
+* Update sbt-houserules to 0.3.22 (#15)
+* Update scala3-library, ... to 3.1.2 (#14)
+
 ## 0.0.16
 
 _2022-04-11_
