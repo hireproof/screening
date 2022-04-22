@@ -25,7 +25,7 @@ object Violation {
     override def toActual: Option[OpenApi] = actual.some
   }
 
-  final case class Missing(reference: Option[String]) extends Violation {
+  final case class Missing(reference: Option[OpenApi]) extends Violation {
     override def toConstraint: Option[Constraint] = none
     override def toActual: Option[OpenApi] = none
   }
@@ -40,6 +40,6 @@ object Violation {
   def invalid[A: Encoder](reference: A, actual: A): Violation = Invalid(reference.asOpenApi.some, actual.asOpenApi)
   def invalid[A: Encoder](actual: A): Violation = Invalid(reference = none, actual.asOpenApi)
   val missing: Violation = Missing(reference = none)
-  def missing(reference: String): Violation = Missing(reference.some)
+  def missing[A: Encoder](reference: A): Violation = Missing(reference.asOpenApi.some)
   def unknown(actual: OpenApi): Violation = Unknown(actual)
 }
