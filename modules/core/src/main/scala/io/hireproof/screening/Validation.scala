@@ -4,7 +4,7 @@ import cats.Applicative
 import cats.arrow.Arrow
 import cats.data.{NonEmptyList, Validated, ValidatedNel}
 import cats.syntax.all._
-import io.circe.{Encoder, Json}
+import io.hireproof.openapi.{Encoder, OpenApi}
 import io.hireproof.screening.validations._
 
 import scala.reflect.ClassTag
@@ -33,7 +33,7 @@ abstract class Validation[-I, +O] {
 
   final def withConstraint(constraint: Constraint): Validation[I, O] =
     Validation(Set(constraint))(run(_).leftMap { violations =>
-      val actual = violations.collectFirstSome(_.toActual).getOrElse(Json.Null)
+      val actual = violations.collectFirstSome(_.toActual).getOrElse(OpenApi.Null)
       NonEmptyList.one(Violation(constraint, actual))
     })
 

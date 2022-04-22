@@ -51,7 +51,7 @@ lazy val root = module(identifier = None)
 lazy val core = module(identifier = Some("core"))
   .settings(
     libraryDependencies ++=
-      "io.circe" %%% "circe-parser" % Version.Circe ::
+        "io.hireproof" %%% "openapi-core" % "0.0.0+7-709f225a+20220422-1236-SNAPSHOT" ::
         "org.typelevel" %%% "cats-core" % Version.Cats ::
         "org.scalameta" %%% "munit" % Version.Munit % "test" ::
         Nil
