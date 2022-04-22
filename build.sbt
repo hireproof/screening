@@ -5,6 +5,7 @@ val Version = new {
   val Circe = "0.14.1"
   val Java = "11"
   val Munit = "0.7.29"
+  val OpenApi = "0.0.0+9-5d3ca43e-SNAPSHOT"
   val Scala213 = "2.13.8"
   val Scala3 = "3.1.2"
   val ScalaJavaTime = "2.3.0"
@@ -51,7 +52,7 @@ lazy val root = module(identifier = None)
 lazy val core = module(identifier = Some("core"))
   .settings(
     libraryDependencies ++=
-      "io.hireproof" %%% "openapi-core" % "0.0.0+8-73ac602a-SNAPSHOT" ::
+      "io.hireproof" %%% "openapi-core" % Version.OpenApi ::
         "org.typelevel" %%% "cats-core" % Version.Cats ::
         "org.scalameta" %%% "munit" % Version.Munit % "test" ::
         Nil
