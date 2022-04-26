@@ -37,9 +37,10 @@ object Violation {
 
   def apply[A: Encoder](constraint: Constraint, actual: A): Violation = Validation(constraint, actual.asOpenApi)
   def conflict[A: Encoder](actual: A): Violation = Conflict(actual.asOpenApi)
-  def invalid[A: Encoder](reference: A, actual: A): Violation = Invalid(reference.asOpenApi.some, actual.asOpenApi)
+  def invalid[A: Encoder, B: Encoder](reference: A, actual: B): Violation =
+    Invalid(reference.asOpenApi.some, actual.asOpenApi)
   def invalid[A: Encoder](actual: A): Violation = Invalid(reference = none, actual.asOpenApi)
   val missing: Violation = Missing(reference = none)
   def missing[A: Encoder](reference: A): Violation = Missing(reference.asOpenApi.some)
-  def unknown(actual: OpenApi): Violation = Unknown(actual)
+  def unknown[A: Encoder](actual: A): Violation = Unknown(actual.asOpenApi)
 }
