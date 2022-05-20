@@ -1,10 +1,8 @@
 package io.hireproof.screening
 
-import cats.data.Chain
 import cats.syntax.all._
 import cats.{Eq, Traverse, UnorderedFoldable}
-import io.circe.{Decoder, Encoder, Json, JsonObject}
-import io.circe.parser.parse
+import io.hireproof.openapi.Encoder
 
 import java.time._
 import java.time.format.DateTimeParseException
@@ -85,26 +83,6 @@ object validations {
       Validation.condNel(Constraint.duration.equal(reference))(_ == reference)
   }
 
-  object json {
-    def apply[A: Decoder](reference: String): Validation[Json, A] =
-      Validation.fromOptionNel(Constraint.json(reference))(_.as[A].toOption)
-
-    def field(name: String): Validation[Json, Json] =
-      Validation.fromOptionNel(Constraint.json(reference = name))(_.hcursor.downField(name).focus)
-
-    def index(i: Int): Validation[Json, Json] =
-      Validation.fromOptionNel(Constraint.json(reference = String.valueOf(i)))(_.hcursor.downN(i).focus)
-
-    val array: Validation[Json, Chain[Json]] =
-      Validation.fromOptionNel(Constraint.json(reference = "[]"))(_.as[Chain[Json]].toOption)
-
-    val obj: Validation[Json, JsonObject] =
-      Validation.fromOptionNel(Constraint.json(reference = "{}"))(_.as[JsonObject].toOption)
-
-    val string: Validation[Json, String] =
-      Validation.fromOptionNel(Constraint.json(reference = "String"))(_.asString)
-  }
-
   object number {
     def equal[I: Numeric: Encoder](reference: I, delta: I): Validation[I, Unit] =
       Validation.condNel[I](Constraint.number.equal(reference, delta.toDouble)) { input =>
@@ -183,7 +161,6 @@ object validations {
     val offsetDateTime: Validation[String, OffsetDateTime] =
       catchOnly[DateTimeParseException]("offsetDateTime")(OffsetDateTime.parse)
     val offsetTime: Validation[String, OffsetTime] = catchOnly[DateTimeParseException]("offsetTime")(OffsetTime.parse)
-    val json: Validation[String, Json] = parsing("json")(parse(_).toOption)
     val short: Validation[String, Short] = parsing("short")(_.toShortOption)
     val uuid: Validation[String, UUID] = catchOnly[IllegalArgumentException]("uuid")(UUID.fromString)
     val zonedDateTime: Validation[String, ZonedDateTime] =

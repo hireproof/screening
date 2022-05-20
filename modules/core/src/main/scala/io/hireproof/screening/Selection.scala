@@ -14,23 +14,14 @@ object Selection {
 
   final case class History(toChain: Chain[Selection]) extends AnyVal {
     def /(field: String): History = append(Field(field))
-
     def /(index: Int): History = append(Index(index))
-
     def /(selection: Selection): History = append(selection)
-
     def append(selection: Selection): History = History(toChain append selection)
-
     def /:(field: String): History = prepend(Field(field))
-
     def /:(index: Int): History = prepend(Index(index))
-
     def /:(selection: Selection): History = prepend(selection)
-
     def prepend(selection: Selection): History = History(toChain prepend selection)
-
     def ++(history: History): History = History(toChain ++ history.toChain)
-
     def isRoot: Boolean = toChain.isEmpty
 
     def up: Selection.History = toChain.initLast match {

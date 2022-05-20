@@ -3,7 +3,7 @@ package io.hireproof
 import cats.data.ValidatedNel
 import cats.syntax.all._
 
-package object screening extends CirceInstances {
+package object screening extends OpenApiInstances {
   val hist: Selection.History = Selection.History.Root
 
   implicit class RichValidatedNel[E, A](val validated: ValidatedNel[E, A]) extends AnyVal {
