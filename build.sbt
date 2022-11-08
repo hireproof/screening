@@ -6,7 +6,7 @@ val Version = new {
   val Java = "11"
   val Munit = "0.7.29"
   val Scala213 = "2.13.9"
-  val Scala3 = "3.2.0"
+  val Scala3 = "3.2.1"
   val ScalaJavaTime = "2.4.0"
 }
 
