@@ -5,7 +5,7 @@ val Version = new {
   val Circe = "0.14.3"
   val Java = "11"
   val Munit = "0.7.29"
-  val Scala213 = "2.13.9"
+  val Scala213 = "2.13.10"
   val Scala3 = "3.2.0"
   val ScalaJavaTime = "2.4.0"
 }
