@@ -1,7 +1,7 @@
 import sbtcrossproject.CrossProject
 
 val Version = new {
-  val Cats = "2.8.0"
+  val Cats = "2.9.0"
   val Circe = "0.14.3"
   val Java = "11"
   val Munit = "0.7.29"
